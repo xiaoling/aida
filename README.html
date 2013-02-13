@@ -1,6 +1,6 @@
 <h1 id="aida-accurateonlinedisambiguationofentities">AIDA - Accurate Online Disambiguation of Entities</h1>
 
-<p><a href="http://www.mpi-inf.mpg.de/yago-naga/aida/">AIDA</a> is the named entity disambiguation system created by the Databases and Information Systems Department at the <a href="http://www.mpi-inf.mpg.de/departments/d5/index.html">Max Planck Institute for Informatics in Saarbücken, Germany</a>. It identifies mentions of named entities (persons, organizations, locations, songs, products, &#8230;) in text and links them to a unique identifier. Most names are ambiguous, especially family names, and AIDA resolves this ambiguity. See the EMNLP 2011 publication [EMNLP2011] for a detailed description of how it works and the VLDB 2011 publication [VLDB2011] for a description of our Web demo.</p>
+<p><a href="http://www.mpi-inf.mpg.de/yago-naga/aida/">AIDA</a> is the named entity disambiguation system created by the Databases and Information Systems Department at the <a href="http://www.mpi-inf.mpg.de/departments/d5/index.html">Max Planck Institute for Informatics in Saarbücken, Germany</a>. It identifies mentions of named entities (persons, organizations, locations, songs, products, &#8230;) in English language text and links them to a unique identifier. Most names are ambiguous, especially family names, and AIDA resolves this ambiguity. See the EMNLP 2011 publication [EMNLP2011] for a detailed description of how it works and the VLDB 2011 publication [VLDB2011] for a description of our Web demo.</p>
 
 <p>If you want to be notified about AIDA news or new releases, subscribe to our announcement mailing list by sending a mail to:</p>
 
@@ -118,7 +118,7 @@ for (ResultMention rm : results.getResultMentions()) {
 
 <h2 id="inputformat">Input Format</h2>
 
-<p>The input of AIDA is a text (as Java String) or file in UTF&#8211;8 encoding. By default, named entities are recognized by the Stanford NER component of the <a href="http://nlp.stanford.edu/software/corenlp.shtml">CoreNLP</a> tool suite. In addition, mentions can be marked up by square brackets, as in this example &#8220;Page&#8221;:</p>
+<p>The input of AIDA is an English language text (as Java String) or file in UTF&#8211;8 encoding. By default, named entities are recognized by the Stanford NER component of the <a href="http://nlp.stanford.edu/software/corenlp.shtml">CoreNLP</a> tool suite. In addition, mentions can be marked up by square brackets, as in this example &#8220;Page&#8221;:</p>
 
 <pre><code>When [[Page]] played Kashmir at Knebworth, his Les Paul was uniquely tuned.
 </code></pre>

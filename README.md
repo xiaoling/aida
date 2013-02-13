@@ -1,6 +1,6 @@
 # AIDA - Accurate Online Disambiguation of Entities
 
-[AIDA][AIDA] is the named entity disambiguation system created by the Databases and Information Systems Department at the [Max Planck Institute for Informatics in Saarbücken, Germany][MPID5]. It identifies mentions of named entities (persons, organizations, locations, songs, products, ...) in text and links them to a unique identifier. Most names are ambiguous, especially family names, and AIDA resolves this ambiguity. See the EMNLP 2011 publication [EMNLP2011] for a detailed description of how it works and the VLDB 2011 publication [VLDB2011] for a description of our Web demo.
+[AIDA][AIDA] is the named entity disambiguation system created by the Databases and Information Systems Department at the [Max Planck Institute for Informatics in Saarbücken, Germany][MPID5]. It identifies mentions of named entities (persons, organizations, locations, songs, products, ...) in English language text and links them to a unique identifier. Most names are ambiguous, especially family names, and AIDA resolves this ambiguity. See the EMNLP 2011 publication [EMNLP2011] for a detailed description of how it works and the VLDB 2011 publication [VLDB2011] for a description of our Web demo.
 
 If you want to be notified about AIDA news or new releases, subscribe to our announcement mailing list by sending a mail to:
 
@@ -105,7 +105,7 @@ The output will be an HTML file with annotated mentions, linking to the correspo
 
 ## Input Format
 
-The input of AIDA is a text (as Java String) or file in UTF-8 encoding. By default, named entities are recognized by the Stanford NER component of the [CoreNLP][CoreNLP] tool suite. In addition, mentions can be marked up by square brackets, as in this example "Page":
+The input of AIDA is an English language text (as Java String) or file in UTF-8 encoding. By default, named entities are recognized by the Stanford NER component of the [CoreNLP][CoreNLP] tool suite. In addition, mentions can be marked up by square brackets, as in this example "Page":
 
     When [[Page]] played Kashmir at Knebworth, his Les Paul was uniquely tuned.
     
