@@ -201,7 +201,13 @@ public class Disambiguator implements Runnable {
 
   private Map<ResultMention, List<ResultEntity>> runLocalDisambiguation(PreparedInput content, DisambiguationSettings settings, Tracer tracer) throws SQLException {
     Map<String, Map<ResultMention, List<ResultEntity>>> solutions = Collections.synchronizedMap(new HashMap<String, Map<ResultMention, List<ResultEntity>>>());
-    LocalDisambiguation ld = new LocalDisambiguation(content, settings.getSimilaritySettings(), settings.isIncludeNullAsEntityCandidate(), settings.isIncludeContextMentions(), content.getDocId(), solutions, tracer);
+    LocalDisambiguation ld = 
+        new LocalDisambiguation(
+            content, settings.getSimilaritySettings(), 
+            settings.isIncludeNullAsEntityCandidate(), 
+            settings.isIncludeContextMentions(), 
+            settings.getMaxEntityRank(),
+            content.getDocId(), solutions, tracer);
     ld.run();
     return solutions.get(content.getDocId());
   }

@@ -1,11 +1,11 @@
 package mpi.aida.config;
 
-import java.io.File;
-import java.io.FileReader;
 import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import mpi.aida.util.ClassPathUtils;
 
 /**
  * Main configuration path for global settings.
@@ -43,17 +43,22 @@ public class AidaConfig {
   public static final String MAX_NUM_CANDIDATE_ENTITIES_FOR_GRAPH = "maxNumCandidateEntitiesForGraph";
   
   public static final String EE_NUM_THREADS = "eeNumThreads";
+  
+  public static final String LOAD_HYENA_MODELS = "loadHyenaModels";
+  
+  public static final String PRELOAD_WORD_EXPANSIONS = "preloadWordExpansions";
+  
 
   private Properties properties;
 
-  private String path = "./settings/aida.properties";
+  private String path = "aida.properties";
 
   private static AidaConfig config = null;
 
   private AidaConfig() {
     properties = new Properties();
     try {
-      properties.load(new FileReader(new File(path)));
+    	properties = ClassPathUtils.getPropertiesFromClasspath(path);
     } catch (Exception e) {
       properties = new Properties();
       logger.error("Main settings file missing. " +
@@ -92,12 +97,18 @@ public class AidaConfig {
       } else if (key.equals(MAX_NUM_CANDIDATE_ENTITIES_FOR_GRAPH)) {
         // 0 means no limit.
         value = "0";
+      } else if (key.equals(PRELOAD_WORD_EXPANSIONS)) {
+        value = "true";
       } else {
         logger.error("" +
         		"Missing key in properties file with no default value: " + key);
       }
     }
     return value;
+  }
+  
+  public static boolean getBoolean(String key) {
+    return Boolean.parseBoolean(get(key));
   }
   
   public static void set(String key, String value) {

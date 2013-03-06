@@ -1,5 +1,7 @@
 package mpi.aida;
 
+import gnu.trove.map.hash.TIntIntHashMap;
+
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -7,9 +9,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 import mpi.aida.access.DataAccess;
+import mpi.aida.config.AidaConfig;
 import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
 import mpi.aida.data.Mention;
@@ -20,6 +24,7 @@ import mpi.aida.preparation.AidaTokenizerManager;
 import mpi.aida.preparation.mentionrecognition.FilterMentions;
 import mpi.aida.preparation.mentionrecognition.FilterMentions.FilterType;
 import mpi.aida.util.YagoUtil.Gender;
+import mpi.aida.util.ClassPathUtils;
 import mpi.database.DBConnection;
 import mpi.database.DBSettings;
 import mpi.database.MultipleDBManager;
@@ -33,10 +38,12 @@ public class AidaManager {
   public static final String DB_AIDA = "DatabaseAida";
   public static final String DB_YAGO2_FULL = "DatabaseYago2Full";
   public static final String DB_YAGO2_SPOTLX = "DatabaseYago2SPOTLX";
+  public static final String DB_RMI_LOGGER = "DatabaseRMILogger";
 
-  private static String databaseAidaConfig = "./settings/database_aida.properties";
-  private static String databaseYAGO2FullConfig = "./settings/database_yago2full.properties";
-  private static String databaseYAGO2SPOTLXConfig = "./settings/database_yago2spotlx.properties";
+  private static String databaseAidaConfig = "database_aida.properties";
+  private static String databaseYAGO2FullConfig = "database_yago2full.properties";
+  private static String databaseYAGO2SPOTLXConfig = "database_yago2spotlx.properties";
+  private static String databaseRMILoggerConfig = "databaseRmiLogger.properties";
 
   public static final String WIKIPEDIA_PREFIX = "http://en.wikipedia.org/wiki/";
   public static final String YAGO_PREFIX = "http://yago-knowledge.org/resource/";
@@ -48,11 +55,18 @@ public class AidaManager {
     dbIdToConfig.put(DB_AIDA, databaseAidaConfig);
     dbIdToConfig.put(DB_YAGO2_FULL, databaseYAGO2FullConfig);   
     dbIdToConfig.put(DB_YAGO2_SPOTLX, databaseYAGO2SPOTLXConfig);
+    dbIdToConfig.put(DB_RMI_LOGGER, databaseRMILoggerConfig);
   }
   
   private static AidaManager tasks = null;
   
+  /** Decides which datastructure will be used to access the word expansions.
+   */
+  private static boolean didPreloadWordExpansions;
+  /** Preloaded word expansions. */
   private static int[] wordExpansions = null;
+  /** Word expansions loaded on the fly. */
+  private static TIntIntHashMap cachedWordExpansions = null;
 
   public static enum language {
     english, german
@@ -96,7 +110,13 @@ public class AidaManager {
   }
 
   private static synchronized void initWordExpansion() {
-    wordExpansions = DataAccess.getAllWordExpansions();
+    if (AidaConfig.getBoolean(AidaConfig.PRELOAD_WORD_EXPANSIONS)) {
+      wordExpansions = DataAccess.getAllWordExpansions();
+      didPreloadWordExpansions = true;
+    } else {
+      cachedWordExpansions = new TIntIntHashMap();
+      didPreloadWordExpansions = false;
+    }
   }
 
   public static PreparedInput prepareInputData(String text, String docId, FilterType by) {
@@ -164,8 +184,24 @@ public class AidaManager {
 
   public static synchronized DBConnection getConnectionForDatabase(String dbId, String req) throws SQLException {
     if (!MultipleDBManager.isConnected(dbId)) {
-      DBSettings settings = new DBSettings(dbIdToConfig.get(dbId));
-      MultipleDBManager.addDatabase(dbId, settings);
+    	try{
+    		Properties prop = ClassPathUtils.getPropertiesFromClasspath(dbIdToConfig.get(dbId));
+    		String type = prop.getProperty("type");
+    		String service = null;
+    		if (type.equalsIgnoreCase("Oracle")) {
+    			service = prop.getProperty("serviceName");
+    	        } else if (type.equalsIgnoreCase("PostGres")) {
+    	        	service = prop.getProperty("schema");
+    	        }
+    		DBSettings settings = new DBSettings(prop.getProperty("hostname"), Integer.parseInt(prop.getProperty("port")), 
+    				prop.getProperty("username"), prop.getProperty("password"), Integer.parseInt(prop.getProperty("maxConnection")), 
+    				prop.getProperty("type"), service);
+    	    MultipleDBManager.addDatabase(dbId, settings);
+    	} catch (Exception e) {
+			e.printStackTrace();
+		}
+//      DBSettings settings = new DBSettings(dbIdToConfig.get(dbId));
+//      MultipleDBManager.addDatabase(dbId, settings);
     }
     return MultipleDBManager.getConnection(dbId, req);
   }
@@ -176,6 +212,9 @@ public class AidaManager {
   
   /**
    * Gets an AIDA entity for the given YAGO entity id.
+   * This is slow, as it accesses the DB for each call.
+   * Do in batch using DataAccess directly for a larger number 
+   * of entities.
    * 
    * @param yagoEntityId  ID in YAGO2 format
    * @return              AIDA Entity
@@ -186,6 +225,9 @@ public class AidaManager {
   
   /**
    * Gets an AIDA entity for the given AIDA entity id.
+   * This is slow, as it accesses the DB for each call.
+   * Do in batch using DataAccess directly for a larger number 
+   * of entities.
    * 
    * @param entityId  Internal AIDA int ID 
    * @return          AIDA Entity
@@ -247,12 +289,11 @@ public class AidaManager {
    * 
    * @param mention
    *            Mention to get entity candidates for
-   * @return Candidate entities for this mention (in YAGO2 encoding) including
-   *         their prior probability
+   * @return Candidate entities for this mention.
    * 
    */
   public static Entities getEntitiesForMention(String mention) {
-    return DataAccess.getEntitiesForMention(mention);
+    return DataAccess.getEntitiesForMention(mention, 1.0);
   }
   /**
    * Returns the potential entity candidates for a mention (via the YAGO
@@ -260,12 +301,13 @@ public class AidaManager {
    * 
    * @param mention
    *            Mention to get entity candidates for
-   * @return Candidate entities for this mention (in YAGO2 encoding) including
-   *         their prior probability
+   * @param maxEntityRank Retrieve entities up to a global rank, where rank is 
+   * between 0.0 (best) and 1.0 (worst). Setting to 1.0 will retrieve all entities.
+   * @return Candidate entities for this mention.
    * 
    */
-  public static Entities getEntitiesForMention(Mention mention) {
-    return DataAccess.getEntitiesForMention(mention.getMention());
+  public static Entities getEntitiesForMention(Mention mention, double maxEntityRank) {
+    return DataAccess.getEntitiesForMention(mention.getMention(), maxEntityRank);
   }
 
   /**
@@ -279,8 +321,8 @@ public class AidaManager {
    *         their prior probability
    * @throws SQLException
    */
-  public static Entities getEntitiesForMention(Mention  mention, List<String> filteringTypes) throws SQLException {
-    Entities entities = getEntitiesForMention(mention);
+  public static Entities getEntitiesForMention(Mention  mention, List<String> filteringTypes, double maxEntityRank) throws SQLException {
+    Entities entities = getEntitiesForMention(mention, maxEntityRank);
     Entities filteredEntities = new Entities();
     for (Entity entity : entities) {
       String entityName = entity.getName();
@@ -302,21 +344,38 @@ public class AidaManager {
 
   
   public static void fillInCandidateEntities(Mentions mentions) throws SQLException {
-    fillInCandidateEntities(null, mentions, false, false);
+    fillInCandidateEntities(null, mentions, false, false, 1.0);
   }
 
-  public static void fillInCandidateEntities(String docId, Mentions mentions, boolean includeNullEntityCandidates, boolean includeContextMentions) throws SQLException {
+  /**
+   * Retrieves all the candidate entities for the given mentions.
+   * 
+   * @param docId Id of the input doc.
+   * @param mentions  All mentions in the input doc.
+   * @param includeNullEntityCandidates Set to true to include mentions flagged
+   * as NME in the ground-truth data.
+   * @param includeContextMentions  Include mentions as context.
+   * @param maxEntityRank Fraction of entities to include. Between 0.0 (none)
+   * and 1.0 (all). The ranks are taken from the entity_rank table.
+   * @throws SQLException
+   */
+  public static void fillInCandidateEntities(
+      String docId, Mentions mentions, boolean includeNullEntityCandidates, 
+      boolean includeContextMentions, double maxEntityRank) throws SQLException {
     List<String> filteringTypes = mentions.getEntitiesTypes();
     for (int i = 0; i < mentions.getMentions().size(); i++) {
       Mention m = mentions.getMentions().get(i);
       Entities mentionCandidateEntities;
-      if (malePronouns.contains(m.getMention()) || femalePronouns.contains(m.getMention())) setCandiatesFromPreviousMentions(mentions, i);
+      if (malePronouns.contains(m.getMention()) 
+          || femalePronouns.contains(m.getMention())) {
+        setCandiatesFromPreviousMentions(mentions, i);
+      }
       else {
 
         if (filteringTypes != null) {
-        	mentionCandidateEntities = AidaManager.getEntitiesForMention(m, filteringTypes);
+        	mentionCandidateEntities = AidaManager.getEntitiesForMention(m, filteringTypes, maxEntityRank);
         } else {
-        	mentionCandidateEntities = AidaManager.getEntitiesForMention(m);
+        	mentionCandidateEntities = AidaManager.getEntitiesForMention(m, maxEntityRank);
 	    } 
         
 
@@ -430,6 +489,18 @@ public class AidaManager {
    NEED TO CALL INIT FIRST!.
    */
   public static int expandTerm(int wordId) {
-    return wordExpansions[wordId];
+    int expansion = 0;
+    if (didPreloadWordExpansions) {
+      expansion = wordExpansions[wordId];
+    } else {
+      synchronized (cachedWordExpansions) {
+        expansion = cachedWordExpansions.get(wordId);
+        if (expansion == cachedWordExpansions.getNoEntryValue()) {
+          expansion = DataAccess.getWordExpansion(wordId);
+          cachedWordExpansions.put(wordId, expansion);
+        }
+      }
+    }
+    return expansion;
   }
 }

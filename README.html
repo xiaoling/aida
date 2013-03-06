@@ -57,7 +57,7 @@
 
 <h2 id="hands-onapiexample">Hands-On API Example</h2>
 
-<p>The main classes in AIDA are <code>mpi.aida.Preparator</code> for preparing an input document and <code>mpi.aida.Disambiguator</code> for running the disambiguation on the prepared input. A minimal call looks like this:</p>
+<p>The main classes in AIDA are <code>mpi.aida.Preparator</code> for preparing an input document and <code>mpi.aida.Disambiguator</code> for running the disambiguation on the prepared input. Be aware that the document id passed to the Preparator must be distinct per AIDA process, as AIDA caches data by document id. A minimal call looks like this:</p>
 
 <pre><code>// Define the input.
 String inputText = &quot;When [[Page]] played Kashmir at Knebworth, his Les Paul was uniquely tuned.&quot;;
@@ -66,7 +66,10 @@ String inputText = &quot;When [[Page]] played Kashmir at Knebworth, his Les Paul
 // to identify names. Strings marked with [[ ]] will also be treated as names.
 PreparationSettings prepSettings = new StanfordHybridPreparationSettings();
 Preparator p = new Preparator();
-PreparedInput input = p.prepare(&quot;document_id&quot;, inputText, prepSettings);
+// The document id needs to be distinct for each document that is disambiguated
+// while AIDA is running. AIDA caches data by docId, and will not work when
+// the same id is reused for multiple documents.
+PreparedInput input = p.prepare(&quot;distinct_document_id&quot;, inputText, prepSettings);
 
 // Disambiguate the input with the graph coherence algorithm.
 DisambiguationSettings disSettings = new CocktailPartyDisambiguationSettings();    

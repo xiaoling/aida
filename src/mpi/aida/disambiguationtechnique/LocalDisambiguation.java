@@ -40,6 +40,8 @@ public class LocalDisambiguation implements Runnable {
 	protected boolean includeNullAsEntityCandidate;
 	
 	protected boolean includeContextMentions;
+	
+	protected double maxEntityRank;
 
 	protected Tracer tracer = null;
 
@@ -47,7 +49,7 @@ public class LocalDisambiguation implements Runnable {
 	
 	public LocalDisambiguation(PreparedInput input, SimilaritySettings settings,
 			boolean includeNullAsEntityCandidate,
-			boolean includeContextMentions, String docId,
+			boolean includeContextMentions, double maxEntityRank, String docId,
 			Map<String, Map<ResultMention, List<ResultEntity>>> solutions, Tracer tracer)
 			throws SQLException {
 	  nf = NumberFormat.getNumberInstance(Locale.ENGLISH);
@@ -60,6 +62,7 @@ public class LocalDisambiguation implements Runnable {
 		this.input = input;
 		this.includeNullAsEntityCandidate = includeNullAsEntityCandidate;
 		this.includeContextMentions = includeContextMentions;
+		this.maxEntityRank = maxEntityRank;
 		this.tracer = tracer;
 		
 		logger.debug("Finished preparing '" + docId + "'");
@@ -70,7 +73,7 @@ public class LocalDisambiguation implements Runnable {
 	  long beginTime = System.currentTimeMillis();
 	  try {
       AidaManager.fillInCandidateEntities(docId, input.getMentions(),
-          includeNullAsEntityCandidate, includeContextMentions);
+          includeNullAsEntityCandidate, includeContextMentions, maxEntityRank);
     } catch (SQLException e) {
       logger.error("SQLException when getting candidates: " + 
                    e.getLocalizedMessage());

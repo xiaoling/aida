@@ -20,8 +20,11 @@ import mpi.experiment.trace.Tracer;
  */
 public class TfIdfCosineSimilarityMeasure extends MentionEntitySimilarityMeasure {
 
+  private int collectionSize_;
+  
   public TfIdfCosineSimilarityMeasure(Tracer tracer) {
     super(tracer);
+    collectionSize_ = DataAccess.getCollectionSize();
   }
 
   @Override
@@ -84,11 +87,11 @@ public class TfIdfCosineSimilarityMeasure extends MentionEntitySimilarityMeasure
     for (int term : new TIntHashSet(is).toArray()) {
       int tf = tfs.get(term);
       int df = termDFs.get(term);
-      if (df == 0) df = YagoUtil.TOTAL_YAGO_ENTITIES; // default smoothing
+      if (df == 0) df = collectionSize_; // default smoothing
 
       double tfIdf = 
           (double) tf 
-          * log2((double) YagoUtil.TOTAL_YAGO_ENTITIES / (double) df);
+          * log2((double) collectionSize_ / (double) df);
 
       vector.put(term, tfIdf);
     }

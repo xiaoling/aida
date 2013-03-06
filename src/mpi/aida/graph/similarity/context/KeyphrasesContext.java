@@ -43,6 +43,8 @@ public class KeyphrasesContext extends EntitiesContext {
     
   protected Entities realEntities;
     
+  private int collectionSize_;
+  
   DBConnection con;
 
   public KeyphrasesContext(Entities entities) throws Exception {
@@ -88,6 +90,8 @@ public class KeyphrasesContext extends EntitiesContext {
 
   @Override
   protected void setupEntities(Entities entities) throws Exception {   
+    collectionSize_ = DataAccess.getCollectionSize();
+    
     // initialize all datastructures
     keyword2idf = new TIntDoubleHashMap();
     
@@ -183,7 +187,7 @@ public class KeyphrasesContext extends EntitiesContext {
           double miWeight = 
               calculateMI(
                   entityOccurrenceCount, keywordOccurrenceCount, 
-                  intersectionCount, getNSize(), shouldNormalize);
+                  intersectionCount, collectionSize_, shouldNormalize);
         
           if (Double.isNaN(miWeight)) {
             System.out.println(
@@ -205,7 +209,7 @@ public class KeyphrasesContext extends EntitiesContext {
       }
       
       int df = keywordDF.get(keyword);         
-      double idf = WeightComputation.log2(getNSize() / df);
+      double idf = WeightComputation.log2(collectionSize_ / df);
       
       if (Double.isNaN(idf)) {
         logger.debug("Keyword IDF '" +
@@ -216,15 +220,11 @@ public class KeyphrasesContext extends EntitiesContext {
       
       boolean shouldNormalize = (settings != null) ? settings.shouldNormalizeWeights() : false;
       if (shouldNormalize) {
-        idf = idf / WeightComputation.log2(getNSize());
+        idf = idf / WeightComputation.log2(collectionSize_);
       }
            
       keyword2idf.put(keyword, idf);
     }
-  }
-
-  protected int getNSize() {
-    return YagoUtil.TOTAL_YAGO_ENTITIES;
   }
   
   protected double calculateMI(

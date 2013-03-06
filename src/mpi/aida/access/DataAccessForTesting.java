@@ -66,6 +66,10 @@ public class DataAccessForTesting implements DataAccessInterface {
       new String[] { "Knebworth_Festival", "2" },
   };
   
+  private String[] orderedEntities = new String[] {
+      "Larry_Page", "Jimmy_Page", "Nomatching_Page", "Stopword_Page",
+      "Kashmir", "Kashmir_(song)", "Knebworth_Festival" };
+  
   /**
    * All keyphrase superdoc frequencies. Format is:
    * keyphrase, frequency
@@ -92,7 +96,7 @@ public class DataAccessForTesting implements DataAccessInterface {
       new String[] { "Kashmir_(song)", "Led_Zeppelin", "Robert_Plant", "Jimmy_Page" },
       new String[] { "Knebworth_Festival", "England", "Music_Festival", "Led_Zeppelin" },
   };
-   
+     
   @Override
   public int[] getInlinkNeighbors(Entity entity) {
     Entities singleEntity = new Entities();
@@ -215,26 +219,48 @@ public class DataAccessForTesting implements DataAccessInterface {
   }
 
   @Override
-  public Entities getEntitiesForMention(String mention) {
+  public Entities getEntitiesForMention(String mention, double maxEntityRank) {
     if (mention.equals("Page")) {
       Entities pageEntities = new Entities();
-      pageEntities.add(new Entity("Jimmy_Page", DataAccess.getIdForYagoEntityId("Jimmy_Page")));
-      pageEntities.add(new Entity("Larry_Page", DataAccess.getIdForYagoEntityId("Larry_Page")));
+      Entity e1 = new Entity("Jimmy_Page", DataAccess.getIdForYagoEntityId("Jimmy_Page"));
+      if (getEntityRank(e1) <= maxEntityRank) { pageEntities.add(e1); }
+      Entity e2 = new Entity("Larry_Page", DataAccess.getIdForYagoEntityId("Larry_Page"));
+      if (getEntityRank(e2) <= maxEntityRank) { pageEntities.add(e2); }
       return pageEntities;
     } else if (mention.equals("Kashmir")) {
       Entities kashmirEntities = new Entities();
-      kashmirEntities.add(new Entity("Kashmir", DataAccess.getIdForYagoEntityId("Kashmir")));
-      kashmirEntities.add(new Entity("Kashmir_(song)", DataAccess.getIdForYagoEntityId("Kashmir_(song)")));
+      Entity e1 = new Entity("Kashmir", DataAccess.getIdForYagoEntityId("Kashmir"));
+      if (getEntityRank(e1) <= maxEntityRank) { kashmirEntities.add(e1); }
+      Entity e2 = new Entity("Kashmir_(song)", DataAccess.getIdForYagoEntityId("Kashmir_(song)"));
+      if (getEntityRank(e2) <= maxEntityRank) { kashmirEntities.add(e2); }
       return kashmirEntities;
     } else if (mention.equals("Knebworth")) {
       Entities knebworthEntities = new Entities();
-      knebworthEntities.add(new Entity("Knebworth_Festival", DataAccess.getIdForYagoEntityId("Knebworth_Festival")));
+      Entity e1 = new Entity("Knebworth_Festival", DataAccess.getIdForYagoEntityId("Knebworth_Festival"));
+      if (getEntityRank(e1) <= maxEntityRank) { knebworthEntities.add(e1); } 
       return knebworthEntities;
     } else if (mention.equals("Les Paul")) {
       return new Entities();
     } else {
       throw new IllegalArgumentException(mention + " is not part of Testing");
     }
+  }
+  
+  public double getEntityRank(Entity e) {
+    int offset = 0;
+    for (String rank : orderedEntities) {
+      if (rank.equals(e.getName())) {
+        break;
+      } else {
+        ++offset;
+      }
+    }
+    
+    if (offset == orderedEntities.length) {
+      System.err.println("No rank for entity: " + e);
+    }
+    
+    return (double) offset / (double) orderedEntities.length;
   }
 
   @Override
@@ -571,8 +597,11 @@ public class DataAccessForTesting implements DataAccessInterface {
 
   @Override
   public Entities getAllEntities() {
-    System.err.println("Accessed " + getMethodName());
-    return null;
+    Entities entities = new Entities();
+    for (String eName : orderedEntities) {
+      entities.add(new Entity(eName, DataAccess.getIdForYagoEntityId(eName)));
+    }
+    return entities;
   }
 
   @Override
@@ -595,5 +624,29 @@ public class DataAccessForTesting implements DataAccessInterface {
   public boolean isYagoEntity(Entity entity) {
     System.err.println("Accessed " + getMethodName());
     return false;
+  }
+
+
+  @Override
+  public TIntObjectHashMap<int[]> getAllInlinks() {
+    System.err.println("Accessed " + getMethodName());
+    return null;
+  }
+  
+  public TObjectIntHashMap<String> getAllWordIds() {
+    System.err.println("Accessed " + getMethodName());
+    return null;
+  }
+
+
+  @Override
+  public int getCollectionSize() {
+    return TOTAL_ENTITY_COUNT;
+  }
+
+
+  @Override
+  public int getWordExpansion(int wordId) {
+    return getAllWordExpansions()[wordId];
   }  
 }

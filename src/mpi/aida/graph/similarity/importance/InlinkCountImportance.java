@@ -5,6 +5,8 @@ import gnu.trove.map.hash.TIntObjectHashMap;
 
 import java.sql.SQLException;
 
+import javax.xml.crypto.Data;
+
 import mpi.aida.access.DataAccess;
 import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
@@ -30,10 +32,11 @@ public class InlinkCountImportance extends EntityImportance {
   @Override
   protected void setupEntities(Entities e) throws SQLException {
     TIntObjectHashMap<int[]> neighbors = DataAccess.getInlinkNeighbors(e);
+    double collectionSize = (double) DataAccess.getCollectionSize();
     for (int eId : e.getUniqueIds()) {
       double importance = 
           (double) neighbors.get(eId).length 
-          / (double) YagoUtil.TOTAL_YAGO_ENTITIES;
+          / (double) collectionSize;
       inlinkImportance.put(eId, importance);
     }
   }

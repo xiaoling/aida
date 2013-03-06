@@ -19,6 +19,7 @@ public class MilneWittenEntityEntitySimilarity extends EntityEntitySimilarity {
   
   private TIntObjectHashMap<EWAHCompressedBitmap> entity2vector;
 
+  private int collectionSize;
 
   public MilneWittenEntityEntitySimilarity(EntityEntitySimilarityMeasure similarityMeasure, EntitiesContext entityContext) throws Exception {
     // not needed - uses entites directly
@@ -31,6 +32,8 @@ public class MilneWittenEntityEntitySimilarity extends EntityEntitySimilarity {
     logger.info("Initializing MilneWittenEntityEntitySimilarity for " + 
                 entities.uniqueNameSize() + " entities");
 
+    collectionSize = DataAccess.getCollectionSize();
+    
     TIntObjectHashMap<int[]> entityInlinks = 
         DataAccess.getInlinkNeighbors(entities);
     
@@ -78,7 +81,7 @@ public class MilneWittenEntityEntitySimilarity extends EntityEntitySimilarity {
     
     if (overlap > 0) {  
       // now calc the real similarity
-      double distance = (Math.log(max) - Math.log((double) overlap)) / (Math.log(YagoUtil.TOTAL_YAGO_ENTITIES) - Math.log(min));
+      double distance = (Math.log(max) - Math.log((double) overlap)) / (Math.log(collectionSize) - Math.log(min));
   
       sim = 1 - distance;
       

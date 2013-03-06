@@ -11,6 +11,7 @@
 	<property name="external_jars" location="./lib" />
 	<property name="created_jars" location="./" />
 	<property name="resources" location="./resources" />
+	<property name="settings" location="./settings" />
 	<property name="test.reports" location="./reports" />
 	<property environment="env" />
 
@@ -24,6 +25,7 @@
 	<target name="compile" depends="init" 
 		description="Compiles the project.">
 		<javac includeJavaRuntime="true" includeAntRuntime="false" srcdir="${src}" debug="yes" destdir="${build}">
+			<src path="${src}"/>
 			<classpath>
 				<pathelement location="./" />
 				<fileset dir="${external_jars}">
@@ -34,6 +36,9 @@
 		</javac>
 		<copy todir="${build}">
 			<fileset dir="${resources}">
+				<exclude name="**/*.java" />
+			</fileset>
+			<fileset dir="${settings}">
 				<exclude name="**/*.java" />
 			</fileset>
 		</copy>
@@ -60,31 +65,7 @@
 		<delete dir="${build}" />
 		<delete file="${created_jars}/aida.jar" />
 	</target>
-
-	<target name="rmi-service" 
-		description="AIDA RMI service.">
-		<java classname="mpi.aida.service.AidaRMIService" 
-			fork="true" spawn="false">
-			<jvmarg value="-Xmx45000M" />
-			<classpath>
-				<pathelement location="./" />
-				<fileset dir="${created_jars}">
-					<include name="*.jar" />
-				</fileset>
-				<fileset dir="${external_jars}">
-					<include name="*.jar" />
-				</fileset>
-				<fileset dir="${resources}">
-					<include name="*.properties" />
-				</fileset>
-			</classpath>
-		</java>
-	</target>
-
-	<target name="run" depends="cleanall,dist,rmi-service" 
-		description="Cleans, compiles, and runs the rmi service.">
-	</target>
-
+			
 	<target name="compile-test" depends="init,compile" 
 		description="Compiles the unit tests.">
 		<javac includeantruntime="false" srcdir="${src-test}" debug="yes" destdir="${build}">

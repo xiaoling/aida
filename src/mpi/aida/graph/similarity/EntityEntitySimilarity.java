@@ -114,7 +114,7 @@ public class EntityEntitySimilarity {
     return new EntityEntitySimilarity(new KOREEntityEntitySimilarityMeasure(tracer), new FastWeightedKeyphrasesContext(entities, settings));
   }
   
-//  public static EntityEntitySimilarity getLSHPartialKeyphraseEntityEntitySimilarity(Entities entities, EntitiesContextSettings settings, Tracer tracer) throws Exception {
+//  public static EntityEntitySimilarity getKORELSHEntityEntitySimilarity(Entities entities, EntitiesContextSettings settings, Tracer tracer) throws Exception {
 //    return new EntityEntitySimilarity(new LSHEntityEntitySimilarityMeasure(tracer), new LSHContext(entities, settings));
 //  }
 

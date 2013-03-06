@@ -12,6 +12,7 @@ import mpi.aida.config.settings.DisambiguationSettings;
 import mpi.aida.config.settings.PreparationSettings;
 import mpi.aida.config.settings.disambiguation.CocktailPartyDisambiguationSettings;
 import mpi.aida.config.settings.disambiguation.CocktailPartyKOREDisambiguationSettings;
+import mpi.aida.config.settings.disambiguation.CocktailPartyKORELSHDisambiguationSettings;
 import mpi.aida.config.settings.disambiguation.LocalDisambiguationSettings;
 import mpi.aida.config.settings.disambiguation.PriorOnlyDisambiguationSettings;
 import mpi.aida.config.settings.preparation.StanfordHybridPreparationSettings;
@@ -63,6 +64,8 @@ public class CommandLineDisambiguator {
       disSettings = new CocktailPartyDisambiguationSettings();
     } else if (disambiguationTechniqueSetting.equals("GRAPH-KORE")) {
       disSettings = new CocktailPartyKOREDisambiguationSettings();
+    } else if (disambiguationTechniqueSetting.equals("GRAPH-KORELSH")) {
+      disSettings = new CocktailPartyKORELSHDisambiguationSettings();
     } else {
       System.err.println(
           "disambiguation-technique can be either: " +

@@ -157,8 +157,8 @@ public class SimilaritySettings implements Serializable {
         nGramLength = Integer.parseInt(prop.getProperty("nGramLength", String.valueOf(2)));
         
         // LSH config
-        lshBandSize = Integer.parseInt(prop.getProperty("lshBandSize", "2"));
-        lshBandCount = Integer.parseInt(prop.getProperty("lshBandCount", "10"));
+        lshBandSize = Integer.parseInt(prop.getProperty("lshBandSize", "1"));
+        lshBandCount = Integer.parseInt(prop.getProperty("lshBandCount", "200"));
         lshDatabaseTable = prop.getProperty("lshDatabaseTable", DataAccessSQL.ENTITY_LSH_SIGNATURES);
 
         if (prop.containsKey("keyphraseSourceExclusion")) {
@@ -329,8 +329,8 @@ public class SimilaritySettings implements Serializable {
       return EntityEntitySimilarity.getFastPartialMaxMinKeyphraseEntityEntitySimilarity(entities, settings, tracer);
     } else if (eeIdentifier.equals("KOREEntityEntitySimilarity")) {
       return EntityEntitySimilarity.getKOREEntityEntitySimilarity(entities, settings, tracer);
-//    } else if (eeIdentifier.equals("LSHPartialKeyphraseEntityEntitySimilarity")) {
-//      return EntityEntitySimilarity.getLSHPartialKeyphraseEntityEntitySimilarity(entities, settings, tracer);
+//    } else if (eeIdentifier.equals("KORELSHEntityEntitySimilarity")) {
+//      return EntityEntitySimilarity.getKORELSHEntityEntitySimilarity(entities, settings, tracer);
     } else if (eeIdentifier.equals("TopKeyphraseBasedEntityEntitySimilarity")) {
       return EntityEntitySimilarity.getTopKeyphraseBasedEntityEntitySimilarity(entities, numberOfEntityKeyphrase, tracer);
     } else {

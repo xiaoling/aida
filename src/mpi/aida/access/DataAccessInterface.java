@@ -20,7 +20,7 @@ public interface DataAccessInterface {
 
   public DataAccess.type getAccessType();
 
-  public Entities getEntitiesForMention(String mention);
+  public Entities getEntitiesForMention(String mention, double maxEntityRank);
 
   public int[] getInlinkNeighbors(Entity e);
 
@@ -83,4 +83,12 @@ public interface DataAccessInterface {
 
   public Keyphrases getEntityKeyphrases(Entities entities,
       String keyphraseSourceExclusion);
+
+  public TIntObjectHashMap<int[]> getAllInlinks();
+
+  public TObjectIntHashMap<String> getAllWordIds();
+
+  public int getCollectionSize();
+
+  public int getWordExpansion(int wordId);
  }

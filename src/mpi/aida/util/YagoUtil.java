@@ -23,9 +23,7 @@ import basics.Normalize;
  *
  */
 public class YagoUtil {
-  
-  public static final int TOTAL_YAGO_ENTITIES = 2651987;
-  
+   
   public enum Gender {
     FEMALE, MALE;
   }

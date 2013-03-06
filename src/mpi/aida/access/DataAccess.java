@@ -72,8 +72,8 @@ public class DataAccess {
     return DataAccess.getInstance().getAccessType();
   }
 
-  public static Entities getEntitiesForMention(String mention) {
-    return DataAccess.getInstance().getEntitiesForMention(mention);
+  public static Entities getEntitiesForMention(String mention, double maxEntityRank) {
+    return DataAccess.getInstance().getEntitiesForMention(mention, maxEntityRank);
   }
   
   public static Keyphrases getEntityKeyphrases(Entities entities) {
@@ -236,4 +236,28 @@ public class DataAccess {
   public static boolean isYagoEntity(Entity entity) {
     return getInstance().isYagoEntity(entity);
   }
+
+  public static TIntObjectHashMap<int[]> getAllInlinks() {
+    return getInstance().getAllInlinks();
+  }
+  
+  public static TObjectIntHashMap<String> getAllWordIds() {
+    return getInstance().getAllWordIds();
+  }
+  
+  
+  /**
+   * Used for the weight computation. This returns the total number of 
+   * documents in the collection for the computation of the keyword IDF weights.
+   * In the original AIDA setting with YAGO-entities this is the number of 
+   * Wikipedia entities.
+   * @return  Collection Size.
+   */
+  public static int getCollectionSize() {
+    return getInstance().getCollectionSize();
+  }
+
+  public static int getWordExpansion(int wordId) {
+    return getInstance().getWordExpansion(wordId);
+  }  
 }

@@ -6,13 +6,13 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import javatools.util.FileUtils;
 import mpi.aida.access.DataAccess;
 
 import org.slf4j.Logger;
@@ -22,9 +22,9 @@ public class StopWord {
   private static final Logger logger = 
       LoggerFactory.getLogger(StopWord.class);
 
-  public static String pathStopWords = "./settings/tokens/stopwords6.txt";
+  public static String pathStopWords = "tokens/stopwords6.txt";
 
-  public static String pathSymbols = "./settings/tokens/symbols.txt";
+  public static String pathSymbols = "tokens/symbols.txt";
 
   private static StopWord stopwords = null;
 
@@ -47,38 +47,23 @@ public class StopWord {
   }
 
   private void load() {
-    File f = new File(pathStopWords);
-    if (f.exists()) {
-      try {
-        BufferedReader reader = FileUtils.getBufferedUTF8Reader(f);
-        String word = reader.readLine().trim();
-        while (word != null) {
-          words.add(word.trim());
-          word = reader.readLine();
-        }
-        reader.close();
-      } catch (Exception e) {
-        logger.error(e.getLocalizedMessage());
+    try{
+      List<String> stopwords = ClassPathUtils.getContent(pathStopWords);
+      for(String stopword: stopwords){
+        words.add(stopword.trim());
       }
-    } else {
-      logger.error("Path does not exists " + pathStopWords);
+    } catch (IOException e){
+      logger.error(e.getMessage());
     }
-    f = new File(pathSymbols);
-    if (f.exists()) {
-      try {
-        BufferedReader reader = FileUtils.getBufferedUTF8Reader(f);
-        String word = reader.readLine().trim();
-        while (word != null) {
-          words.add(word.trim());
-          symbols.add(word.charAt(0));
-          word = reader.readLine();
-        }
-        reader.close();
-      } catch (Exception e) {
-        logger.error(e.getLocalizedMessage());
+    try{
+      List<String> str = ClassPathUtils.getContent(pathSymbols);
+      for(String word: str){
+        word = word.trim();
+        words.add(word);
+        symbols.add(word.charAt(0));
       }
-    } else {
-      logger.error("Path does not exists " + pathSymbols);
+    } catch (IOException e){
+      logger.error(e.getMessage());
     }
     wordIds = new TIntHashSet(DataAccess.getIdsForWords(words).values());
   }

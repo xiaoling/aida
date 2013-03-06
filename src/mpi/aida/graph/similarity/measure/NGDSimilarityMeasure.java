@@ -1,16 +1,19 @@
 package mpi.aida.graph.similarity.measure;
 
 import gnu.trove.set.hash.TIntHashSet;
+import mpi.aida.access.DataAccess;
 import mpi.aida.data.Entity;
 import mpi.aida.graph.similarity.context.EntitiesContext;
 import mpi.aida.graph.similarity.context.WeightedKeyphrasesContext;
-import mpi.aida.util.YagoUtil;
 import mpi.experiment.trace.Tracer;
 
 public class NGDSimilarityMeasure extends EntityEntitySimilarityMeasure {
 
+  private int collectionSize_;
+  
   public NGDSimilarityMeasure(Tracer tracer) {
     super(tracer);
+    collectionSize_ = DataAccess.getCollectionSize();
   }
 
   protected WeightedKeyphrasesContext kwc;
@@ -22,7 +25,7 @@ public class NGDSimilarityMeasure extends EntityEntitySimilarityMeasure {
     double max = getMax(a, b, entitiesContext);
     double min = getMin(a, b, entitiesContext);
     double intersect = getIntersect(a, b, entitiesContext); 
-    double collection = getCollection();
+    double collection = (double) collectionSize_;
     
     double sim = 0.0;
    
@@ -58,9 +61,5 @@ public class NGDSimilarityMeasure extends EntityEntitySimilarityMeasure {
     e1context.retainAll(e2context); 
     int intersectSize = e1context.size();
     return (double) intersectSize;
-  }
-
-  protected double getCollection() {
-    return ((double) YagoUtil.TOTAL_YAGO_ENTITIES);
   }
 }

@@ -80,6 +80,13 @@ public class DisambiguationSettings implements Serializable {
    */
   private double cohRobustnessThreshold = 0;
   
+  /**
+   * Maximum (global) rank of the entity according to the entity_rank table.
+   * Currently, entities are ranked by number of inlinks. 0.0 means no entity
+   * is included, 1.0 means all are included. Default is to include all.
+   */
+  private double maxEntityRank = 1.0;
+  
   private double nullMappingThresholdFactor = -1.0;
   
   private boolean includeNullAsEntityCandidate = false;
@@ -208,5 +215,13 @@ public class DisambiguationSettings implements Serializable {
   
   public boolean isIncludeContextMentions() {
     return includeContextMentions;
+  }
+
+  public double getMaxEntityRank() {
+    return maxEntityRank;
+  }
+
+  public void setMaxEntityRank(double maxEntityRank) {
+    this.maxEntityRank = maxEntityRank;
   }
 }

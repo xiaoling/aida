@@ -16,7 +16,6 @@ import mpi.aida.graph.extraction.ExtractGraph;
 import mpi.aida.graph.similarity.EnsembleEntityEntitySimilarity;
 import mpi.aida.graph.similarity.EnsembleMentionEntitySimilarity;
 import mpi.aida.graph.similarity.MaterializedPriorProbability;
-import mpi.aida.graph.similarity.util.SimilaritySettings;
 import mpi.experiment.trace.GraphTracer;
 import mpi.experiment.trace.NullGraphTracer;
 import mpi.experiment.trace.Tracer;
@@ -34,20 +33,8 @@ public class GraphGenerator {
 
   private String docId;
 
-  private SimilaritySettings similaritySettings;
-
-  private SimilaritySettings combSimMeasureSettings;
-
-  private boolean useCoherenceRobustness;
-
-  private double coherenceRobustnessThreshold;
-
-  private double alpha;
-
-  private boolean includeNullEntityCandidates;
-
-  private boolean includeContextMentions;
-
+  private DisambiguationSettings settings;
+  
   private Tracer tracer = null;
 
   // set this to 20000 for web server so it can still run for web server
@@ -57,13 +44,7 @@ public class GraphGenerator {
     //		this.storePath = content.getStoreFile();
     this.content = content;
     this.docId = content.getDocId();
-    this.useCoherenceRobustness = settings.shouldUseCoherenceRobustnessTest();
-    coherenceRobustnessThreshold = settings.getCohRobustnessThreshold();
-    this.similaritySettings = settings.getSimilaritySettings();
-    this.combSimMeasureSettings = settings.getCoherenceSimilaritySetting();
-    alpha = settings.getAlpha();
-    this.includeNullEntityCandidates = settings.isIncludeNullAsEntityCandidate();
-    this.includeContextMentions = settings.isIncludeContextMentions();
+    this.settings = settings;
     this.tracer = tracer;
     try {
       if (AidaConfig.get(AidaConfig.MAX_NUM_CANDIDATE_ENTITIES_FOR_GRAPH) != null) {
@@ -82,11 +63,13 @@ public class GraphGenerator {
 
   private Graph generateGraph() throws Exception {
     Mentions mentions = content.getMentions();
-    AidaManager.fillInCandidateEntities(docId, mentions, includeNullEntityCandidates, includeContextMentions);
+    AidaManager.fillInCandidateEntities(
+        docId, mentions, settings.isIncludeNullAsEntityCandidate(),
+        settings.isIncludeContextMentions(), settings.getMaxEntityRank());
     Set<String> mentionStrings = new HashSet<String>();
     Entities allEntities = new Entities();
 
-    if (includeNullEntityCandidates) {
+    if (settings.isIncludeNullAsEntityCandidate()) {
       allEntities.setIncludesNmeEntities(true);
     }
 
@@ -125,11 +108,14 @@ public class GraphGenerator {
     Set<Mention> mentionsToSolveByLocal = new HashSet<Mention>();
 
     // IF WE USE ROBUSTNESS, DO THE FOLLOWING
-    if (useCoherenceRobustness) {
-
+    if (settings.shouldUseCoherenceRobustnessTest()) {
       double[] l1s = new double[mentions.getMentions().size()];
 
-      EnsembleMentionEntitySimilarity combSimMeasure = new EnsembleMentionEntitySimilarity(content.getMentions(), allEntities, combSimMeasureSettings, content.getDocId(), tracer);
+      EnsembleMentionEntitySimilarity combSimMeasure = 
+          new EnsembleMentionEntitySimilarity(
+              content.getMentions(), allEntities, 
+              settings.getCoherenceSimilaritySetting(), content.getDocId(), 
+              tracer);
 
       // for each mention
       int currentMention = 0;
@@ -146,7 +132,7 @@ public class GraphGenerator {
         // otherwise, SOLVE_BY_COHERENCE
         double l1 = calcL1(priorDistribution, simDistribution);
 
-        if (l1 < coherenceRobustnessThreshold) {
+        if (l1 < settings.getCohRobustnessThreshold()) {
           mentionsToSolveByLocal.add(mention);
           GraphTracer.gTracer.addMentionToLocalOnly(docId, mention.getMention(), mention.getCharOffset());
         }
@@ -161,13 +147,16 @@ public class GraphGenerator {
       }
     }
 
-    EnsembleMentionEntitySimilarity mentionEntitySimilarity = new EnsembleMentionEntitySimilarity(content.getMentions(), allEntities, similaritySettings, content.getDocId(), tracer);
+    EnsembleMentionEntitySimilarity mentionEntitySimilarity = 
+        new EnsembleMentionEntitySimilarity(
+            content.getMentions(), allEntities, 
+            settings.getSimilaritySettings(), content.getDocId(), tracer);
     logger.info("Computing the mention-entity similarities...");
 
     // We might drop entities here, so we have to rebuild the list of unique
     // entities
     allEntities = new Entities();
-    if (includeNullEntityCandidates) {
+    if (settings.isIncludeNullAsEntityCandidate()) {
       allEntities.setIncludesNmeEntities(true);
     }
     for (int i = 0; i < mentions.getMentions().size(); i++) {
@@ -180,7 +169,8 @@ public class GraphGenerator {
         double priorProbability = 0.0;
         try {
           priorProbability = pp.getPriorProbability(mentionText, candidate);
-          priorProbability = priorProbability * similaritySettings.getPriorWeight();
+          priorProbability = 
+              priorProbability * settings.getSimilaritySettings().getPriorWeight();
         } catch (NoSuchElementException e) {
           e.printStackTrace();
         }
@@ -207,9 +197,13 @@ public class GraphGenerator {
       }
     }
     logger.info("Building the graph...");
-    EnsembleEntityEntitySimilarity eeSim = new EnsembleEntityEntitySimilarity(allEntities, similaritySettings, tracer);
+    EnsembleEntityEntitySimilarity eeSim = 
+        new EnsembleEntityEntitySimilarity(
+            allEntities, settings.getSimilaritySettings(), tracer);
 
-    ExtractGraph egraph = new ExtractGraph(docId, mentions, allEntities, eeSim, alpha);
+    ExtractGraph egraph = 
+        new ExtractGraph(
+            docId, mentions, allEntities, eeSim, settings.getAlpha());
     Graph gData = null;
     try {
       gData = egraph.generateGraph();

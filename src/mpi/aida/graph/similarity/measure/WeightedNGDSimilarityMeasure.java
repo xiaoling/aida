@@ -3,7 +3,6 @@ package mpi.aida.graph.similarity.measure;
 import gnu.trove.set.hash.TIntHashSet;
 import mpi.aida.data.Entity;
 import mpi.aida.graph.similarity.context.EntitiesContext;
-import mpi.aida.util.YagoUtil;
 import mpi.experiment.trace.Tracer;
 
 
@@ -69,10 +68,5 @@ public class WeightedNGDSimilarityMeasure extends NGDSimilarityMeasure {
     intersectWeight /= 2;
     
     return intersectWeight;
-  }
-
-  @Override
-  protected double getCollection() {
-    return YagoUtil.TOTAL_YAGO_ENTITIES;
   }
 }
