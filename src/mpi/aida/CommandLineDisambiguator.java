@@ -53,7 +53,7 @@ public class CommandLineDisambiguator {
     PreparationSettings prepSettings = new StanfordHybridPreparationSettings();
     Preparator p = new Preparator();
     PreparedInput input = 
-        p.prepare(inputFile, content.toString(), prepSettings);
+        p.prepare(content.toString(), prepSettings);
 
     DisambiguationSettings disSettings = null;   
     if (disambiguationTechniqueSetting.equals("PRIOR")) {

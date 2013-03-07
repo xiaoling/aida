@@ -19,7 +19,7 @@ Note that AIDA does not annotate common words (like song, musician, idea, ... ).
 
 ## Requirements
 
-AIDA needs a [Postgres][Postgres] database to run. We tested it starting from version 8.4, but version 9.2 will give a better performance for many queries AIDA runs, due to the ability to fetch data from the indexes.
+AIDA was written in Java, and requires Java 6. AIDA also needs a [Postgres][Postgres] database to run. We tested it starting from version 8.4, but version 9.2 will give a better performance for many queries AIDA runs, due to the ability to fetch data from the indexes.
 
 The machine AIDA runs on should have a reasonable amount of main memory. If you are using graph coherence (see the Section *Configuring AIDA*), the amount of memory grows quadratically with the number of entities and thus the length of the document. Anything above 10,000 candidates will be too much for a regular desktop machine (at the time of writing) to handle and should run on a machine with more than 20GB of main memory. AIDA does the most intensive computations in parallel and thus benefits from multi-core machine.
 
@@ -50,7 +50,7 @@ The main configuration is done in the files in the `settings/` directory. The fo
 
 ## Hands-On API Example
 
-The main classes in AIDA are `mpi.aida.Preparator` for preparing an input document and `mpi.aida.Disambiguator` for running the disambiguation on the prepared input. Be aware that the document id passed to the Preparator must be distinct per AIDA process, as AIDA caches data by document id. A minimal call looks like this:
+The main classes in AIDA are `mpi.aida.Preparator` for preparing an input document and `mpi.aida.Disambiguator` for running the disambiguation on the prepared input.
 
 	// Define the input.
 	String inputText = "When [[Page]] played Kashmir at Knebworth, his Les Paul was uniquely tuned.";
@@ -59,10 +59,7 @@ The main classes in AIDA are `mpi.aida.Preparator` for preparing an input docume
 	// to identify names. Strings marked with [[ ]] will also be treated as names.
 	PreparationSettings prepSettings = new StanfordHybridPreparationSettings();
 	Preparator p = new Preparator();
-    // The document id needs to be distinct for each document that is disambiguated
-    // while AIDA is running. AIDA caches data by docId, and will not work when
-    // the same id is reused for multiple documents.
-	PreparedInput input = p.prepare("distinct_document_id", inputText, prepSettings);
+	PreparedInput input = p.prepare(inputText, prepSettings);
 	
 	// Disambiguate the input with the graph coherence algorithm.
 	DisambiguationSettings disSettings = new CocktailPartyDisambiguationSettings();    

@@ -22,7 +22,7 @@
 
 <h2 id="requirements">Requirements</h2>
 
-<p>AIDA needs a <a href="http://www.postgresql.org">Postgres</a> database to run. We tested it starting from version 8.4, but version 9.2 will give a better performance for many queries AIDA runs, due to the ability to fetch data from the indexes.</p>
+<p>AIDA was written in Java, and requires Java 6. AIDA also needs a <a href="http://www.postgresql.org">Postgres</a> database to run. We tested it starting from version 8.4, but version 9.2 will give a better performance for many queries AIDA runs, due to the ability to fetch data from the indexes.</p>
 
 <p>The machine AIDA runs on should have a reasonable amount of main memory. If you are using graph coherence (see the Section <em>Configuring AIDA</em>), the amount of memory grows quadratically with the number of entities and thus the length of the document. Anything above 10,000 candidates will be too much for a regular desktop machine (at the time of writing) to handle and should run on a machine with more than 20GB of main memory. AIDA does the most intensive computations in parallel and thus benefits from multi-core machine.</p>
 
@@ -57,7 +57,7 @@
 
 <h2 id="hands-onapiexample">Hands-On API Example</h2>
 
-<p>The main classes in AIDA are <code>mpi.aida.Preparator</code> for preparing an input document and <code>mpi.aida.Disambiguator</code> for running the disambiguation on the prepared input. Be aware that the document id passed to the Preparator must be distinct per AIDA process, as AIDA caches data by document id. A minimal call looks like this:</p>
+<p>The main classes in AIDA are <code>mpi.aida.Preparator</code> for preparing an input document and <code>mpi.aida.Disambiguator</code> for running the disambiguation on the prepared input.</p>
 
 <pre><code>// Define the input.
 String inputText = &quot;When [[Page]] played Kashmir at Knebworth, his Les Paul was uniquely tuned.&quot;;
@@ -66,10 +66,7 @@ String inputText = &quot;When [[Page]] played Kashmir at Knebworth, his Les Paul
 // to identify names. Strings marked with [[ ]] will also be treated as names.
 PreparationSettings prepSettings = new StanfordHybridPreparationSettings();
 Preparator p = new Preparator();
-// The document id needs to be distinct for each document that is disambiguated
-// while AIDA is running. AIDA caches data by docId, and will not work when
-// the same id is reused for multiple documents.
-PreparedInput input = p.prepare(&quot;distinct_document_id&quot;, inputText, prepSettings);
+PreparedInput input = p.prepare(inputText, prepSettings);
 
 // Disambiguate the input with the graph coherence algorithm.
 DisambiguationSettings disSettings = new CocktailPartyDisambiguationSettings();    
