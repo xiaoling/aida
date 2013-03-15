@@ -1171,11 +1171,15 @@ public class DataAccessSQL implements DataAccessInterface {
       stmt.commit();
     } catch (Exception e) {
       logger.error(e.getLocalizedMessage());
-      logger.error("You probably have an outdated entity repository, please" +
-      		" download the latest version from the AIDA website.");
+      logger.error("You might have an outdated entity repository, please " +
+      		"download the latest version from the AIDA website. Also check " +
+      		"above for other error messages, maybe the connection to the " +
+      		"Postgres database is not working properly.");
       throw new IllegalStateException(
-          "You probably have an outdated entity repository, please" +
-          " download the latest version from the AIDA website.");
+          "You might have an outdated entity repository, please " +
+              "download the latest version from the AIDA website. Also check " +
+              "above for other error messages, maybe the connection to the " +
+              "Postgres database is not working properly.");
     } finally {
       AidaManager.releaseConnection(AidaManager.DB_AIDA, con);
     }

@@ -23,17 +23,22 @@ import mpi.aida.data.ResultEntity;
 import mpi.aida.preparation.AidaTokenizerManager;
 import mpi.aida.preparation.mentionrecognition.FilterMentions;
 import mpi.aida.preparation.mentionrecognition.FilterMentions.FilterType;
-import mpi.aida.util.YagoUtil.Gender;
 import mpi.aida.util.ClassPathUtils;
+import mpi.aida.util.YagoUtil.Gender;
 import mpi.database.DBConnection;
 import mpi.database.DBSettings;
 import mpi.database.MultipleDBManager;
 import mpi.tokenizer.data.Tokenizer;
 import mpi.tokenizer.data.Tokens;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import basics.Normalize;
 
 public class AidaManager {
-
+  private static Logger slogger_ = LoggerFactory.getLogger(AidaManager.class);
+  
   // This is more couple to SQL than it should be. Works for now.
   public static final String DB_AIDA = "DatabaseAida";
   public static final String DB_YAGO2_FULL = "DatabaseYago2Full";
@@ -184,25 +189,33 @@ public class AidaManager {
 
   public static synchronized DBConnection getConnectionForDatabase(String dbId, String req) throws SQLException {
     if (!MultipleDBManager.isConnected(dbId)) {
-    	try{
-    		Properties prop = ClassPathUtils.getPropertiesFromClasspath(dbIdToConfig.get(dbId));
-    		String type = prop.getProperty("type");
-    		String service = null;
-    		if (type.equalsIgnoreCase("Oracle")) {
-    			service = prop.getProperty("serviceName");
-    	        } else if (type.equalsIgnoreCase("PostGres")) {
-    	        	service = prop.getProperty("schema");
-    	        }
-    		DBSettings settings = new DBSettings(prop.getProperty("hostname"), Integer.parseInt(prop.getProperty("port")), 
-    				prop.getProperty("username"), prop.getProperty("password"), Integer.parseInt(prop.getProperty("maxConnection")), 
-    				prop.getProperty("type"), service);
-    	    MultipleDBManager.addDatabase(dbId, settings);
-    	} catch (Exception e) {
-			e.printStackTrace();
-		}
-//      DBSettings settings = new DBSettings(dbIdToConfig.get(dbId));
-//      MultipleDBManager.addDatabase(dbId, settings);
+      try {
+        Properties prop = ClassPathUtils
+            .getPropertiesFromClasspath(dbIdToConfig.get(dbId));
+        String type = prop.getProperty("type");
+        String service = null;
+        if (type.equalsIgnoreCase("Oracle")) {
+          service = prop.getProperty("serviceName");
+        } else if (type.equalsIgnoreCase("PostGres")) {
+          service = prop.getProperty("schema");
+        }
+        DBSettings settings = new DBSettings(prop.getProperty("hostname"),
+            Integer.parseInt(prop.getProperty("port")),
+            prop.getProperty("username"), prop.getProperty("password"),
+            Integer.parseInt(prop.getProperty("maxConnection")),
+            prop.getProperty("type"), service);
+        MultipleDBManager.addDatabase(dbId, settings);
+      } catch (Exception e) {
+    	  slogger_.error(
+    	      "Error connecting to the AIDA database: " + e.getLocalizedMessage());
+    	}
     }
+    if (!MultipleDBManager.isConnected(dbId)) {
+      slogger_.error("Could not connect to the AIDA database. " +
+      		"Please check the settings in 'settings/database_aida.properties'" +
+      		"and make sure the Postgres server is up and running.");
+      return null;
+    }    
     return MultipleDBManager.getConnection(dbId, req);
   }
 
