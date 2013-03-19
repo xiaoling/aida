@@ -261,6 +261,7 @@ If you are using AIDA, any parts of it or any datasets we made available, please
 
 * Our AIDA project website: [http://www.mpi-inf.mpg.de/yago-naga/aida/](http://www.mpi-inf.mpg.de/yago-naga/aida/)
 * Our news mailing list: Mail to [aida-news-subscribe@lists.mpi-inf.mpg.de](mailto:aida-news-subscribe@lists.mpi-inf.mpg.de) to get news and updates about releases.
+* Build status: [![Build Status](https://travis-ci.org/yago-naga/aida.png)](https://travis-ci.org/yago-naga/aida)
 
 ## Developers
 
