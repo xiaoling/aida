@@ -199,12 +199,17 @@ public class AidaManager {
         } else if (type.equalsIgnoreCase("PostGres")) {
           service = prop.getProperty("schema");
         }
-        DBSettings settings = new DBSettings(prop.getProperty("hostname"),
-            Integer.parseInt(prop.getProperty("port")),
-            prop.getProperty("username"), prop.getProperty("password"),
-            Integer.parseInt(prop.getProperty("maxConnection")),
-            prop.getProperty("type"), service);
+        String hostname = prop.getProperty("hostname");
+        Integer port = Integer.parseInt(prop.getProperty("port"));
+        String username = prop.getProperty("username");
+        String password = prop.getProperty("password");
+        Integer maxCon = Integer.parseInt(prop.getProperty("maxConnection"));
+        
+        DBSettings settings = new DBSettings(
+            hostname, port, username, password, maxCon, type, service);
         MultipleDBManager.addDatabase(dbId, settings);
+        slogger_.info("Connecting to " + type + " database " + username + "@" +
+                       hostname + ":" + port + "/" + service);
       } catch (Exception e) {
     	  slogger_.error(
     	      "Error connecting to the AIDA database: " + e.getLocalizedMessage());
