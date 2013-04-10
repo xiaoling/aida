@@ -185,12 +185,12 @@ public class DataAccessSQL implements DataAccessInterface {
           keyword2mi = new TIntDoubleHashMap();
           entity2keyword2mi.put(entity, keyword2mi);
         }
+        int[] tokenIds = new int[tokens.length];
+        for (int i = 0; i < tokens.length; ++i) {
+          tokenIds[i] = tokens[i];
+          keyword2mi.put(tokenIds[i], tokenWeights[i]);
+        }
         if (!keyphraseTokens.containsKey(keyphrase)) {
-          int[] tokenIds = new int[tokens.length];
-          for (int i = 0; i < tokens.length; ++i) {
-            tokenIds[i] = tokens[i];
-            keyword2mi.put(tokenIds[i], tokenWeights[i]);
-          }
           keyphraseTokens.put(keyphrase, tokenIds);
         }
       }

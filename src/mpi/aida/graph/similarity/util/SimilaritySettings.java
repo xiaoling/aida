@@ -406,6 +406,7 @@ public class SimilaritySettings implements Serializable {
       String eiClassName = "mpi.aida.graph.similarity.importance." + eiSetting[0];
       EntityImportance ei = (EntityImportance) Class.forName(eiClassName).getDeclaredConstructor(Entities.class).newInstance(entities);
       ei.setWeight(Double.parseDouble(eiSetting[1]));
+      eis.add(ei);
     }
 
     return eis;
