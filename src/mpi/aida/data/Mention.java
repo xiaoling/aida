@@ -30,6 +30,11 @@ public class Mention implements Serializable, Comparable<Mention> {
   private Entities candidateEntities;
 
   private int id = -1;
+  
+  /**
+   * Occurrence count either in the collection or in a document. Set as needed.
+   */
+  private int occurrenceCount = 0;
 
   public Mention() {
   }
@@ -171,5 +176,13 @@ public class Mention implements Serializable, Comparable<Mention> {
 
   public String getIdentifiedRepresentation() {
     return mention + ":::" + charOffset;
+  }
+
+  public int getOccurrenceCount() {
+    return occurrenceCount;
+  }
+
+  public void setOccurrenceCount(int occurrenceCount) {
+    this.occurrenceCount = occurrenceCount;
   }
 }
