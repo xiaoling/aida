@@ -272,9 +272,12 @@ public class PreparedInput {
       }
       String NE = (tokens.getToken(i).getNE() != null) ? tokens.getToken(i).getNE() : "NULL";
       String line = tokens.getToken(i).getOriginal() + "\t" + start + 
-                    "\t" + mention.getMention() + 
-                    "\t" + mention.getGroundTruthResult() +
-                    "\t" + NE + "\t" + mention.getOccurrenceCount();
+          "\t" + mention.getMention() + 
+          "\t" + mention.getGroundTruthResult() +
+          "\t" + NE;
+      if (mention.getOccurrenceCount() > 0) {
+        line += "\t" + mention.getOccurrenceCount();
+      }
       writer.write(line);
       writer.newLine();
       start = "I";
