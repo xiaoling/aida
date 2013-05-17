@@ -29,13 +29,13 @@ AIDA was developed to disambiguate to the [YAGO2][YAGO] knowledge base, returnin
 
 To use AIDA with YAGO2, download the repository we provide on our [AIDA website][AIDA] as a Postgres dump and import it into your database server. This will take some time, maybe even a day depending on the speed of the machine Postgres is running on. Once the import is done, you can start using AIDA immediately by adjusting the `settings/database_aida.properties` to point to the database. AIDA will then use nearly 3 million named entities harvested from Wikipedia for disambiguation.
 
-Get the Entity Repository:
+Get the Entity Repository (34 GB):
 
-    curl -O http://www.mpi-inf.mpg.de/yago-naga/aida/download/entity-repository/AIDA_entity_repository_2010-08-17.sql.bz2
+    curl -O http://www.mpi-inf.mpg.de/yago-naga/aida/download/entity-repository/AIDA_entity_repository_2010-08-17v2.sql.bz2
     
 Import it into a postgres database:
 
-    bzcat AIDA_entity_repository_2010-08-17.sql.bz2 | psql <DATABASE>
+    bzcat AIDA_entity_repository_2010-08-17v2.sql.bz2 | psql <DATABASE>
     
 where <DATABASE> is a database on a PostgreSQL server.
 
