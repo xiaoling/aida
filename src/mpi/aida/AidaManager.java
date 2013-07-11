@@ -1,16 +1,24 @@
 package mpi.aida;
 
-import gnu.trove.map.hash.TIntIntHashMap;
-
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import mpi.aida.access.DataAccess;
 import mpi.aida.config.AidaConfig;
@@ -46,12 +54,15 @@ public class AidaManager {
   public static final String DB_RMI_LOGGER = "DatabaseRMILogger";
 
   private static String databaseAidaConfig = "database_aida.properties";
+  private static String databaseOokbeConfig = "database_ookbe.properties";
   private static String databaseYAGO2FullConfig = "database_yago2full.properties";
   private static String databaseYAGO2SPOTLXConfig = "database_yago2spotlx.properties";
   private static String databaseRMILoggerConfig = "databaseRmiLogger.properties";
 
   public static final String WIKIPEDIA_PREFIX = "http://en.wikipedia.org/wiki/";
   public static final String YAGO_PREFIX = "http://yago-knowledge.org/resource/";
+  
+  public static final String WORD_EXPANSION_CACHE = "aida-word_expansions.cache";
   
   private static Map<String, String> dbIdToConfig = 
       new HashMap<String, String>();
@@ -64,14 +75,9 @@ public class AidaManager {
   }
   
   private static AidaManager tasks = null;
-  
-  /** Decides which datastructure will be used to access the word expansions.
-   */
-  private static boolean didPreloadWordExpansions;
+
   /** Preloaded word expansions. */
-  private static int[] wordExpansions = null;
-  /** Word expansions loaded on the fly. */
-  private static TIntIntHashMap cachedWordExpansions = null;
+  private static int[] wordExpansions_ = null;
 
   public static enum language {
     english, german
@@ -115,13 +121,56 @@ public class AidaManager {
   }
 
   private static synchronized void initWordExpansion() {
-    if (AidaConfig.getBoolean(AidaConfig.PRELOAD_WORD_EXPANSIONS)) {
-      wordExpansions = DataAccess.getAllWordExpansions();
-      didPreloadWordExpansions = true;
+    if (AidaConfig.getBoolean(AidaConfig.CACHE_WORD_EXPANSIONS)) {
+      try {
+        wordExpansions_ = createAndLoadCache();
+      } catch (FileNotFoundException e) {
+        slogger_.warn("Could not find cache file, reading from DB.", e);
+        wordExpansions_ = DataAccess.getAllWordExpansions();
+      } catch (IOException e) {
+        slogger_.warn("Could not read cache file, reading from DB.", e);
+        wordExpansions_ = DataAccess.getAllWordExpansions();
+      }
     } else {
-      cachedWordExpansions = new TIntIntHashMap();
-      didPreloadWordExpansions = false;
+      slogger_.info("Loading word_expansions from DB.");
+      wordExpansions_ = DataAccess.getAllWordExpansions();
     }
+    slogger_.info("Done loading word_expansions.");
+  }
+
+  private static int[] createAndLoadCache() throws FileNotFoundException, IOException {
+    int[] wordExps = null;
+    File wordExpansionCache = new File(WORD_EXPANSION_CACHE);
+    if (wordExpansionCache.exists()) {
+      slogger_.info("Loading word_expansions from cache.");
+      DataInputStream in = 
+          new DataInputStream(
+              new BufferedInputStream(
+                  new GZIPInputStream(
+                      new FileInputStream(wordExpansionCache))));
+      wordExps = new int[in.readInt()];
+      for (int i = 0; i < wordExps.length; ++i) {
+        wordExps[i] = in.readInt();
+      }
+      in.close();
+    } else {
+      slogger_.info("Loading word_expansions from DB.");
+      wordExps = DataAccess.getAllWordExpansions();
+      slogger_.info("Caching word_expansions to disk.");
+      // Cache to disk for next run.
+      DataOutputStream out = 
+          new DataOutputStream(
+              new BufferedOutputStream(
+                  new GZIPOutputStream(
+                      new FileOutputStream(wordExpansionCache))));
+      out.writeInt(wordExps.length);
+      for (int exp : wordExps) {
+        out.writeInt(exp);
+      }
+      out.flush();
+      out.close();
+    }
+    return wordExps;
   }
 
   public static PreparedInput prepareInputData(String text, String docId, FilterType by) {
@@ -226,6 +275,11 @@ public class AidaManager {
 
   public static void releaseConnection(String dbId, DBConnection con) {
     MultipleDBManager.releaseConnection(dbId, con);
+  }
+  
+  public static String getOokbeDatabasePath() throws IOException {
+    Properties prop = ClassPathUtils.getPropertiesFromClasspath(databaseOokbeConfig);
+    return prop.getProperty("path");
   }
   
   /**
@@ -384,36 +438,20 @@ public class AidaManager {
     for (int i = 0; i < mentions.getMentions().size(); i++) {
       Mention m = mentions.getMentions().get(i);
       Entities mentionCandidateEntities;
-      if (malePronouns.contains(m.getMention()) 
+      if (malePronouns.contains(m.getMention())
           || femalePronouns.contains(m.getMention())) {
         setCandiatesFromPreviousMentions(mentions, i);
-      }
-      else {
-
+      } else {
         if (filteringTypes != null) {
-        	mentionCandidateEntities = AidaManager.getEntitiesForMention(m, filteringTypes, maxEntityRank);
+          mentionCandidateEntities = AidaManager.getEntitiesForMention(m,
+              filteringTypes, maxEntityRank);
         } else {
-        	mentionCandidateEntities = AidaManager.getEntitiesForMention(m, maxEntityRank);
-	    } 
-        
-
+          mentionCandidateEntities = AidaManager.getEntitiesForMention(m,
+              maxEntityRank);
+        }
         if (includeNullEntityCandidates) {
-          Entity nmeEntity = new Entity(Entities.getMentionNMEKey(m.getMention()), -1);
-
-          // add surrounding mentions as context
-          if (includeContextMentions) {
-            List<String> surroundingMentionsNames = new LinkedList<String>();
-            int begin = Math.max(i - 2, 0);
-            int end = Math.min(i + 3, mentions.getMentions().size());
-
-            for (int s = begin; s < end; s++) {
-              if (s == i) continue; // skip mention itself
-              surroundingMentionsNames.add(mentions.getMentions().get(s).getMention());
-            }
-            nmeEntity.setSurroundingMentionNames(surroundingMentionsNames);
-          }
-
-          mentionCandidateEntities.add(nmeEntity);
+          Entity ookbEntity = new Entity(Entities.getMentionNMEKey(m.getMention()), 0);
+          mentionCandidateEntities.add(ookbEntity);
         }
         m.setCandidateEntities(mentionCandidateEntities);
       }
@@ -507,18 +545,8 @@ public class AidaManager {
    NEED TO CALL INIT FIRST!.
    */
   public static int expandTerm(int wordId) {
-    int expansion = 0;
-    if (didPreloadWordExpansions) {
-      expansion = wordExpansions[wordId];
-    } else {
-      synchronized (cachedWordExpansions) {
-        expansion = cachedWordExpansions.get(wordId);
-        if (expansion == cachedWordExpansions.getNoEntryValue()) {
-          expansion = DataAccess.getWordExpansion(wordId);
-          cachedWordExpansions.put(wordId, expansion);
-        }
-      }
-    }
-    return expansion;
+    assert wordId >= 0 : "wordId must not be negative.";
+    assert wordId < wordExpansions_.length : "wordId out of range.";
+    return wordExpansions_[wordId];
   }
 }

@@ -46,8 +46,9 @@ public class AidaConfig {
   
   public static final String LOAD_HYENA_MODELS = "loadHyenaModels";
   
-  public static final String PRELOAD_WORD_EXPANSIONS = "preloadWordExpansions";
+  public static final String CACHE_WORD_EXPANSIONS = "cacheWordExpansions";
   
+  public static final String ENTITIES_CONTEXT_CACHE_SIZE = "entitiesContextCacheSize";  
 
   private Properties properties;
 
@@ -97,14 +98,21 @@ public class AidaConfig {
       } else if (key.equals(MAX_NUM_CANDIDATE_ENTITIES_FOR_GRAPH)) {
         // 0 means no limit.
         value = "0";
-      } else if (key.equals(PRELOAD_WORD_EXPANSIONS)) {
+      } else if (key.equals(CACHE_WORD_EXPANSIONS)) {
         value = "true";
+      } else if (key.equals(ENTITIES_CONTEXT_CACHE_SIZE)) {
+        value = "10";
       } else {
         logger.error("" +
         		"Missing key in properties file with no default value: " + key);
       }
     }
     return value;
+  }
+  
+  public static int getAsInt(String key) {
+    String value = get(key);
+    return Integer.parseInt(value);
   }
   
   public static boolean getBoolean(String key) {

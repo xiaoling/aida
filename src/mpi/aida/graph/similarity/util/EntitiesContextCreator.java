@@ -7,8 +7,12 @@ import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import mpi.aida.config.AidaConfig;
 import mpi.aida.data.Entities;
 import mpi.aida.graph.similarity.context.EntitiesContext;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** 
  * Caches entity contexts based on the context id and document id.
@@ -16,9 +20,10 @@ import mpi.aida.graph.similarity.context.EntitiesContext;
  * 
  *
  */
-public class EntitiesContextCreator {
-  /** Has to be at least 1. */
-  private static final int CACHE_SIZE = 10;
+public class EntitiesContextCreator {  
+  private Logger logger_ = LoggerFactory.getLogger(EntitiesContextCreator.class);
+  
+  private int cacheSize = 1;
   
   /** Holds the cached EntityContexts. */
   private Map<String, EntitiesContext> cache = 
@@ -39,6 +44,16 @@ public class EntitiesContextCreator {
   
   private static class EntitiesContextCreatorHolder {
     public static EntitiesContextCreator ecc = new EntitiesContextCreator();
+  }
+  
+  public EntitiesContextCreator() {
+    int size = AidaConfig.getAsInt(AidaConfig.ENTITIES_CONTEXT_CACHE_SIZE);
+    // Has to be at least 1.
+    if (size < 1) {
+      logger_.warn("entitiesContextCacheSize must be at least 1, setting to 1.");
+      size = 1;
+    }
+    cacheSize = size;
   }
 
   public static EntitiesContextCreator getEntitiesContextCache() {
@@ -72,7 +87,7 @@ public class EntitiesContextCreator {
           cache.put(id, context);
           cacheIds.add(id);
           
-          if (cacheIds.size() > CACHE_SIZE) {
+          if (cacheIds.size() > cacheSize) {
             String removedId = cacheIds.get(0);
             cacheIds.remove(0);
             cache.remove(removedId);
