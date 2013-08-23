@@ -20,8 +20,6 @@ import mpi.aida.data.ResultEntity;
 import mpi.aida.data.ResultMention;
 import mpi.aida.graph.Graph;
 import mpi.aida.graph.GraphGenerator;
-import mpi.aida.graph.algorithms.CocktailParty;
-import mpi.aida.graph.algorithms.DisambiguationAlgorithm;
 import mpi.experiment.trace.NullTracer;
 import mpi.experiment.trace.Tracer;
 

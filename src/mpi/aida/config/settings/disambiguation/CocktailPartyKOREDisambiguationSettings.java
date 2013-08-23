@@ -53,7 +53,7 @@ public class CocktailPartyKOREDisambiguationSettings extends DisambiguationSetti
     switchedKPsettings.setEntityCohKeyphraseAlpha(1.0);
     switchedKPsettings.setEntityCohKeywordAlpha(0.0);
     switchedKPsettings.setShouldNormalizeCoherenceWeights(true);
-    switchedKPsettings.setKeyphraseSourceExclusion(DataAccess.KPSOURCE_INLINKTITLE);
+    switchedKPsettings.setEntityEntityKeyphraseSourceExclusion(DataAccess.KPSOURCE_INLINKTITLE);
     setSimilaritySettings(switchedKPsettings);
     
     simConfigs = new LinkedList<String[]>();

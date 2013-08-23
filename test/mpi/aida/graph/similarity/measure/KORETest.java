@@ -35,7 +35,7 @@ public class KORETest {
     ecs.setEntityCoherenceKeyphraseAlpha(1.0);
     ecs.setEntityCoherenceKeywordAlpha(0.0);
     ecs.setShouldNormalizeWeights(true);
-    ecs.setKeyphraseSourceExclusion(DataAccess.KPSOURCE_INLINKTITLE);
+    ecs.setEntityEntityKeyphraseSourceExclusion(DataAccess.KPSOURCE_INLINKTITLE);
     EntityEntitySimilarity kore = 
         EntityEntitySimilarity.getKOREEntityEntitySimilarity(
             entities, ecs, new NullTracer());

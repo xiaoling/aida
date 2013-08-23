@@ -15,6 +15,7 @@ import java.util.Set;
 import mpi.aida.config.AidaConfig;
 import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
+import mpi.aida.data.EntityMetaData;
 import mpi.aida.data.Keyphrases;
 import mpi.aida.util.YagoUtil.Gender;
 
@@ -85,6 +86,30 @@ public class DataAccess {
     return DataAccess.getInstance().
         getEntityKeyphrases(entities, keyphrasesSourceExclusion);
   }
+  
+  /**
+   * Retrieves all the Keyphrases for the given entities. Does not return
+   * keyphrases from keyphraseSourceExclusion.
+   * 
+   * If minKeyphraseWeight > 0.0, keyphrases with a weight lower than
+   * minKeyphraseWeight will not be returned.
+   * 
+   * If maxEntityKeyphraseCount > 0, at max maxEntityKeyphraseCount will
+   * be returned for each entity.
+   * 
+   * @param entities
+   * @param keyphrasesSourceExclusion
+   * @param minKeyphraseWeight
+   * @param maxEntityKeyphraseCount
+   * @return
+   */
+  public static Keyphrases getEntityKeyphrases(
+      Entities entities, String keyphrasesSourceExclusion, 
+      double minKeyphraseWeight, int maxEntityKeyphraseCount) {
+    return DataAccess.getInstance().
+        getEntityKeyphrases(entities, keyphrasesSourceExclusion, 
+            minKeyphraseWeight, maxEntityKeyphraseCount);
+  }
 
   public static void getEntityKeyphraseTokens(
       Entities entities,
@@ -114,21 +139,63 @@ public class DataAccess {
     entities.add(entity);
     return getIdsForYagoEntityIds(entities).get(entity);
   }
+
+  public static TObjectIntHashMap<String> getIdsForYagoEntityIds(Collection<String> entityIds) {
+    return DataAccess.getInstance().getIdsForYagoEntityIds(entityIds);
+  }
+  
   
   public static String getYagoEntityIdForId(int entity) {
     int[] entities = new int[1];
     entities[0] = entity;
     return getYagoEntityIdsForIds(entities).get(entity);
   }
-
-  public static TIntObjectHashMap<String> getYagoEntityIdsForIds(int[] ids) {
+   public static TIntObjectHashMap<String> getYagoEntityIdsForIds(int[] ids) {
     return DataAccess.getInstance().getYagoEntityIdsForIds(ids);
   }
-  
-  public static TObjectIntHashMap<String> 
-  getIdsForYagoEntityIds(Collection<String> entityIds) {
-    return DataAccess.getInstance().getIdsForYagoEntityIds(entityIds);
+   
+   public static int getIdForTypeName(String typeName) {
+     List<String> typeNames = new ArrayList<String>(1);
+     typeNames.add(typeName);
+     return getIdsForTypeNames(typeNames).get(typeName);
+   }
+
+   public static TObjectIntHashMap<String> getIdsForTypeNames(Collection<String> typeNames) {
+     return DataAccess.getInstance().getIdsForTypeNames(typeNames);
+   }
+   
+   
+  public static String getTypeNameForId(int typeId) {
+    int[] types = new int[1];
+    types[0] = typeId;
+    return getTypeNamesForIds(types).get(typeId);
   }
+  
+  public static TIntObjectHashMap<String> getTypeNamesForIds(int[] ids) {
+    return DataAccess.getInstance().getTypeNamesForIds(ids);
+  }
+  
+  public static int[] getTypeIdsForEntityId(int entityId) {
+    int[] entities = new int[1];
+    entities[0] = entityId;
+    return getTypesIdsForEntitiesIds(entities).get(entityId);
+  }
+  
+  public static TIntObjectHashMap<int[]> getTypesIdsForEntitiesIds(int[] ids) {
+    return DataAccess.getInstance().getTypesIdsForEntitiesIds(ids);
+  }
+  
+  
+  public static int[] getEntitiesIdsForTypeId(int typeId) {
+    int[] types = new int[1];
+    types[0] = typeId;
+    return getEntitiesIdsForTypesIds(types).get(typeId);
+  }
+  
+  public static TIntObjectHashMap<int[]> getEntitiesIdsForTypesIds(int[] ids) {
+    return DataAccess.getInstance().getEntitiesIdsForTypesIds(ids);
+  }
+
 
   public static String getWordForId(int wordId) {
     int[] words = new int[1];
@@ -170,6 +237,38 @@ public class DataAccess {
     return getInstance().getTypes(Entity);
   }
 
+  public static Map<String, EntityMetaData> getEntitiesMetaData(Set<String> entities) {
+    return getInstance().getEntitiesMetaData(entities);
+  }
+
+  public static EntityMetaData getEntityMetaData(String Entity) {
+    return getInstance().getEntityMetaData(Entity);
+  }
+  
+  public static TIntObjectHashMap<EntityMetaData> getEntitiesMetaData(int[] entitiesIds) {
+    return getInstance().getEntitiesMetaData(entitiesIds);
+  }
+
+  public static EntityMetaData getEntityMetaData(int entityId) {
+    return getInstance().getEntityMetaData(entityId);
+  }
+  
+  public static Map<String, Double> getEntitiesImportances(Set<String> entities) {
+    return getInstance().getEntitiesImportances(entities);
+  }
+
+  public static double getEntityImportance(String Entity) {
+    return getInstance().getEntityImportance(Entity);
+  }
+  
+  public static TIntDoubleHashMap getEntitiesImportances(int[] entitiesIds) {
+    return getInstance().getEntitiesImportances(entitiesIds);
+  }
+
+  public static double getEntityImportance(int entityId) {
+    return getInstance().getEntityImportance(entityId);
+  }
+  
   public static TIntIntHashMap getKeyphraseDocumentFrequencies(TIntHashSet keyphrases) {
     return getInstance().getKeyphraseDocumentFrequencies(keyphrases);
   }

@@ -4,9 +4,12 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import mpi.aida.access.DataAccess;
 import mpi.experiment.trace.Tracer;
 
 public class DisambiguationResults implements Serializable {
@@ -14,6 +17,8 @@ public class DisambiguationResults implements Serializable {
   private static final long serialVersionUID = 8366493180300359941L;
 
   private Map<ResultMention, List<ResultEntity>> mentionMappings;
+  
+  private Map<String, EntityMetaData> entitiesMetaData;
 
   private String gTracerHtml;
 
@@ -23,6 +28,14 @@ public class DisambiguationResults implements Serializable {
     super();
     this.mentionMappings = mentionMappings;
     this.gTracerHtml = gTracerHtml;
+    Set<String> entities = new HashSet<String>();
+    for(List<ResultEntity> resultEntityList: mentionMappings.values()) {
+      for(ResultEntity resultEntity: resultEntityList) {
+        entities.add(resultEntity.getEntity());
+      }
+    }
+
+    this.entitiesMetaData = DataAccess.getEntitiesMetaData(entities);
   }
 
   public List<ResultMention> getResultMentions() {
@@ -33,6 +46,10 @@ public class DisambiguationResults implements Serializable {
 
   public List<ResultEntity> getResultEntities(ResultMention rm) {
     return mentionMappings.get(rm);
+  }
+  
+  public Map<String, EntityMetaData> getEntitiesMetaData() {
+    return entitiesMetaData;
   }
 
   public void setResultEntities(ResultMention rm, List<ResultEntity> res) {

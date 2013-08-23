@@ -5,6 +5,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import javatools.datatypes.Pair;
+import mpi.aida.config.settings.PreparationSettings;
 import mpi.aida.data.Mentions;
 import mpi.aida.data.PreparedInput;
 import mpi.tokenizer.data.Token;
@@ -24,14 +25,19 @@ public class FilterMentions implements Serializable {
     namedEntityFilter = new NamedEntityFilter();
     manualFilter = new ManualFilter();
     hybridFilter = new HybridFilter();
+    // TODO(boldyrev) Add dictionary-based filter here.
   }
 
   /** which type of tokens to get*/
   public static enum FilterType {
     STANFORD_NER, Manual, ManualPOS, Manual_NER, Hybrid, None;
   };
-
   public PreparedInput filter(String text, String docId, Tokens tokens, FilterType by) {
+    return filter(text, docId, tokens, by, PreparationSettings.LANGUAGE.ENGLISH);
+  }
+  
+  public PreparedInput filter(String text, String docId, Tokens tokens, FilterType by, PreparationSettings.LANGUAGE language) {
+    // TODO(mamir) make sure language is passed from the outside.
     Mentions mentions = null;
     Tokens returnTokens = null;
     if (by.equals(FilterType.STANFORD_NER)) {
@@ -56,6 +62,7 @@ public class FilterMentions implements Serializable {
       }
       returnTokens = tokens;
     }
+    // TODO(boldyrev) add dictionary based here. Respect the input language (ENGLISH or GERMAN). 
     PreparedInput preparedInput = new PreparedInput(docId, returnTokens, mentions);
     return preparedInput;
   }

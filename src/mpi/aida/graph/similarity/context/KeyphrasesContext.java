@@ -12,10 +12,10 @@ import mpi.aida.access.DataAccess;
 import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
 import mpi.aida.data.Keyphrases;
+import mpi.aida.graph.similarity.context.EntitiesContextSettings.EntitiesContextType;
 import mpi.aida.graph.similarity.measure.WeightComputation;
 import mpi.aida.util.RunningTimer;
 import mpi.aida.util.StopWord;
-import mpi.aida.util.YagoUtil;
 import mpi.database.DBConnection;
 
 import org.slf4j.Logger;
@@ -104,8 +104,10 @@ public class KeyphrasesContext extends EntitiesContext {
     }
 
     String keyphraseSourceExclusion = null;
-    if (settings != null && settings.getKeyphraseSourceExclusion() != null) {
-      keyphraseSourceExclusion = settings.getKeyphraseSourceExclusion();
+    if (settings.getEntitiesContextType().equals(EntitiesContextType.ENTITY_ENTITY)) {
+      keyphraseSourceExclusion = settings.getEntityEntityKeyphraseSourceExclusion();
+    } else if (settings.getEntitiesContextType().equals(EntitiesContextType.MENTION_ENTITY)) {
+      keyphraseSourceExclusion = settings.getMentionEntityKeyphraseSourceExclusion();
     }
 
     logger.debug("Retrieving all entity keyphrases/keywords + weights");
@@ -113,7 +115,10 @@ public class KeyphrasesContext extends EntitiesContext {
     RunningTimer.stageStart(
         getIdentifier(), "EntityKeyphrasesTokensMI", uniqueId);
     Keyphrases keyphrases = 
-        DataAccess.getEntityKeyphrases(entities, keyphraseSourceExclusion);
+        DataAccess.getEntityKeyphrases(
+            entities, keyphraseSourceExclusion, 
+            settings.getMinimumEntityKeyphraseWeight(),
+            settings.getMaxEntityKeyphraseCount());
     eKps = keyphrases.getEntityKeyphrases();
     kpTokens = keyphrases.getKeyphraseTokens();
     entity2keyword2mi = keyphrases.getEntityKeywordWeights();

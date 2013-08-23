@@ -227,8 +227,7 @@ public class PreparedInput {
     return prepInput;
   }
   
-  public void writeTo(File file) throws IOException {
-    BufferedWriter writer = FileUtils.getBufferedUTF8Writer(file);
+  public void writeTo(BufferedWriter writer) throws IOException {
     writer.write("-DOCSTART- (");
     writer.write(docId_);
     writer.write(")");
@@ -247,6 +246,11 @@ public class PreparedInput {
       writeTokensMention(tokens_, mention, writer);
     }
     writeTokens(tokens_, currentToken, tokens_.size(), writer);
+  }
+  
+  public void writeTo(File file) throws IOException {
+    BufferedWriter writer = FileUtils.getBufferedUTF8Writer(file);
+    writeTo(writer);
     writer.flush();
     writer.close();
   }

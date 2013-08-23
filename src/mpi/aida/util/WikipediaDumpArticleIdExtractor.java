@@ -2,6 +2,7 @@ package mpi.aida.util;
 
 import java.io.Reader;
 
+import basics.Normalize;
 import javatools.filehandlers.FileLines;
 import javatools.parsers.Char;
 import javatools.util.FileUtils;
@@ -35,7 +36,7 @@ public class WikipediaDumpArticleIdExtractor {
       String title = FileLines.readBetween(page, "<title>", "</title>");
       String id = FileLines.readBetween(page, "<id>", "</id>");
       String wpUrl = "http://en.wikipedia.org/wiki/" + title.replace(' ', '_');
-      System.out.println(wpUrl + "\t" + id);
+      System.out.println(Normalize.entity(title) + "\t" + id);
       
       page = FileLines.readBetween(reader, "<page>", "</page>");
     }

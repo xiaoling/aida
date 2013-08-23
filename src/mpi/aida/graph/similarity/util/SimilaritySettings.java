@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -18,11 +19,13 @@ import mpi.aida.graph.similarity.EntityEntitySimilarity;
 import mpi.aida.graph.similarity.MentionEntitySimilarity;
 import mpi.aida.graph.similarity.context.EntitiesContext;
 import mpi.aida.graph.similarity.context.EntitiesContextSettings;
+import mpi.aida.graph.similarity.context.EntitiesContextSettings.EntitiesContextType;
 import mpi.aida.graph.similarity.exception.MissingSettingException;
 import mpi.aida.graph.similarity.importance.EntityImportance;
 import mpi.aida.graph.similarity.measure.MentionEntitySimilarityMeasure;
 import mpi.experiment.trace.Tracer;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,6 +100,8 @@ public class SimilaritySettings implements Serializable {
   private boolean normalizeCoherenceWeights;
   private boolean shouldAverageCoherenceWeights;
   private boolean useConfusableMIWeights;
+  private double minimumEntityKeyphraseWeight;
+  private int maxEntityKeyphraseCount;
   
   // LSH configuration.
   private int lshBandSize;
@@ -105,18 +110,10 @@ public class SimilaritySettings implements Serializable {
   
   private int nGramLength;
   
-  private String keyphraseSourceExclusion;
-
+  private String mentionEntityKeyphraseSourceExclusion;
   
-  public String getKeyphraseSourceExclusion() {
-    return keyphraseSourceExclusion;
-  }
-
-  
-  public void setKeyphraseSourceExclusion(String keyphraseSourceExclusion) {
-    this.keyphraseSourceExclusion = keyphraseSourceExclusion;
-  }
-
+  private String entityEntityKeyphraseSourceExclusion;
+    
   /**
    * Maximum and minimum for each mentionEntitySimilarity in use. Needed
    * for normalization.   
@@ -127,7 +124,6 @@ public class SimilaritySettings implements Serializable {
 
   private String fullPath;
   
-
   /**
    * mentionEntitySimilarities in property file need to be in the following format:
    * 
@@ -142,7 +138,9 @@ public class SimilaritySettings implements Serializable {
     Properties prop = new Properties();
     try {
       if (propertiesFile.exists()) {
-        prop.load(new FileReader(propertiesFile));
+        FileReader fr = new FileReader(propertiesFile);
+        prop.load(fr);
+        fr.close();
 
         priorWeight = Double.parseDouble(prop.getProperty("priorWeight", "0.0"));
 
@@ -155,14 +153,19 @@ public class SimilaritySettings implements Serializable {
         shouldAverageCoherenceWeights = Boolean.parseBoolean(prop.getProperty("shouldAverageCoherenceWeights", "false"));
         useConfusableMIWeights = Boolean.parseBoolean(prop.getProperty("useConfusableMIWeights", "false"));
         nGramLength = Integer.parseInt(prop.getProperty("nGramLength", String.valueOf(2)));
+        minimumEntityKeyphraseWeight = Double.parseDouble(prop.getProperty("minimumEntityKeyphraseWeight", "0.0"));
+        maxEntityKeyphraseCount = Integer.parseInt(prop.getProperty("maxEntityKeyphraseCount", "0"));
         
         // LSH config
-        lshBandSize = Integer.parseInt(prop.getProperty("lshBandSize", "1"));
-        lshBandCount = Integer.parseInt(prop.getProperty("lshBandCount", "200"));
+        lshBandSize = Integer.parseInt(prop.getProperty("lshBandSize", "2"));
+        lshBandCount = Integer.parseInt(prop.getProperty("lshBandCount", "100"));
         lshDatabaseTable = prop.getProperty("lshDatabaseTable", DataAccessSQL.ENTITY_LSH_SIGNATURES);
-
-        if (prop.containsKey("keyphraseSourceExclusion")) {
-          keyphraseSourceExclusion = prop.getProperty("keyphraseSourceExclusion");
+        
+        if (prop.containsKey("entityEntityKeyphraseSourceExclusion")) {
+          entityEntityKeyphraseSourceExclusion = prop.getProperty("entityEntityKeyphraseSourceExclusion");
+        }
+        if (prop.containsKey("mentionEntityKeyphraseSourceExclusion")) {
+          mentionEntityKeyphraseSourceExclusion = prop.getProperty("mentionEntityKeyphraseSourceExclusion");
         }
         
         String mentionEntitySimilarityString = prop.getProperty("mentionEntitySimilarities");
@@ -221,11 +224,17 @@ public class SimilaritySettings implements Serializable {
    * @throws MissingSettingException 
    */
   public SimilaritySettings(List<String[]> similarities, List<String[]> eeSimilarities, double priorWeight, Map<String, double[]> minMaxs) throws MissingSettingException {
+    this(similarities, eeSimilarities, null, priorWeight, minMaxs);
+  }
+  
+  public SimilaritySettings(List<String[]> similarities, List<String[]> eeSimilarities, List<String[]> entityImportances, double priorWeight, Map<String, double[]> minMaxs) throws MissingSettingException {
     this.mentionEntitySimilarities = similarities;
     this.entityEntitySimilarities = eeSimilarities;
+    this.entityImportancesSettings = entityImportances;
     this.priorWeight = priorWeight;
     this.mms = new MaxMinSettings(minMaxs);
   }
+
 
   public String getFullPath() {
     return fullPath;
@@ -270,8 +279,10 @@ public class SimilaritySettings implements Serializable {
           measures.put(simClassName, sim);
         }
         
+        EntitiesContextSettings entitiesContextSettings = 
+            getEntitiesContextSettings(false);
         EntitiesContext con = EntitiesContextCreator.getEntitiesContextCache().
-            getEntitiesContext(entityClassName, docId, entities);
+            getEntitiesContext(entityClassName, docId, entities, entitiesContextSettings);
         
         MentionEntitySimilarity mes = new MentionEntitySimilarity(sim, con, weight);
         sims.add(mes);
@@ -283,17 +294,7 @@ public class SimilaritySettings implements Serializable {
 
   public EntityEntitySimilarity getEntityEntitySimilarity(String eeIdentifier, Entities entities, Tracer tracer) throws Exception {
     EntityEntitySimilarity eeSim = null;
-    EntitiesContextSettings settings = new EntitiesContextSettings();
-    settings.setEntityCoherenceKeyphraseAlpha(entityCohKeyphraseAlpha);
-    settings.setEntityCoherenceKeywordAlpha(entityCohKeywordAlpha);
-    settings.setKeyphraseSourceExclusion(keyphraseSourceExclusion);
-    settings.setUseConfusableMIWeight(useConfusableMIWeights);
-    settings.setShouldNormalizeWeights(normalizeCoherenceWeights);
-    settings.setShouldAverageWeights(shouldAverageCoherenceWeights);
-    settings.setNgramLength(nGramLength);
-    settings.setLshBandCount(lshBandCount);
-    settings.setLshBandSize(lshBandSize);
-    settings.setLshDatabaseTable(lshDatabaseTable);
+    EntitiesContextSettings settings = getEntitiesContextSettings(true);
     
     if (eeIdentifier.equals("MilneWittenEntityEntitySimilarity")) {
       return EntityEntitySimilarity.getMilneWittenSimilarity(entities, tracer);
@@ -325,8 +326,6 @@ public class SimilaritySettings implements Serializable {
       return EntityEntitySimilarity.getWeightedJaccardKeyphraseEntityEntitySimilarity(entities, settings, tracer);
     } else if (eeIdentifier.equals("KeyphraseBasedEntityEntitySimilarity")) {
       return EntityEntitySimilarity.getKeyphraseBasedEntityEntitySimilarity(entities, settings, tracer);
-    } else if (eeIdentifier.equals("FastPartialMaxMinKeyphraseEntityEntitySimilarity")) {
-      return EntityEntitySimilarity.getFastPartialMaxMinKeyphraseEntityEntitySimilarity(entities, settings, tracer);
     } else if (eeIdentifier.equals("KOREEntityEntitySimilarity")) {
       return EntityEntitySimilarity.getKOREEntityEntitySimilarity(entities, settings, tracer);
 //    } else if (eeIdentifier.equals("KORELSHEntityEntitySimilarity")) {
@@ -339,6 +338,31 @@ public class SimilaritySettings implements Serializable {
     }
   }  
    
+  private EntitiesContextSettings getEntitiesContextSettings(boolean isEntitiesContext) {
+    EntitiesContextSettings settings = new EntitiesContextSettings();
+    settings.setEntityCoherenceKeyphraseAlpha(entityCohKeyphraseAlpha);
+    settings.setEntityCoherenceKeywordAlpha(entityCohKeywordAlpha);
+    settings.setUseConfusableMIWeight(useConfusableMIWeights);
+    settings.setShouldAverageWeights(shouldAverageCoherenceWeights);
+    settings.setNgramLength(nGramLength);
+    settings.setLshBandCount(lshBandCount);
+    settings.setLshBandSize(lshBandSize);
+    settings.setLshDatabaseTable(lshDatabaseTable);
+    settings.setMinimumEntityKeyphraseWeight(minimumEntityKeyphraseWeight);
+    settings.setMaxEntityKeyphraseCount(maxEntityKeyphraseCount);
+    // Some settings only apply to EntityEntityContexts.
+    if (isEntitiesContext) {
+      settings.setEntitiesContextType(EntitiesContextType.ENTITY_ENTITY);
+      settings.setShouldNormalizeWeights(normalizeCoherenceWeights);
+      settings.setEntityEntityKeyphraseSourceExclusion(entityEntityKeyphraseSourceExclusion);
+    } else {
+      settings.setEntitiesContextType(EntitiesContextType.MENTION_ENTITY);
+      settings.setMentionEntityKeyphraseSourceExclusion(mentionEntityKeyphraseSourceExclusion);
+    }
+    return settings;
+  }
+
+
   public List<EntityEntitySimilarity> getEntityEntitySimilarities(Entities entities, Tracer tracer) throws Exception {
     List<EntityEntitySimilarity> eeSims = new LinkedList<EntityEntitySimilarity>();
 
@@ -402,13 +426,13 @@ public class SimilaritySettings implements Serializable {
   public List<EntityImportance> getEntityImportances(Entities entities) throws IllegalArgumentException, SecurityException, InstantiationException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, ClassNotFoundException {
     List<EntityImportance> eis = new LinkedList<EntityImportance>();
 
-    for (String[] eiSetting : entityImportancesSettings) {
-      String eiClassName = "mpi.aida.graph.similarity.importance." + eiSetting[0];
-      EntityImportance ei = (EntityImportance) Class.forName(eiClassName).getDeclaredConstructor(Entities.class).newInstance(entities);
-      ei.setWeight(Double.parseDouble(eiSetting[1]));
-      eis.add(ei);
+    if (entityImportancesSettings != null) {
+      for (String[] eiSetting : entityImportancesSettings) {
+        String eiClassName = "mpi.aida.graph.similarity.importance." + eiSetting[0];
+        EntityImportance ei = (EntityImportance) Class.forName(eiClassName).getDeclaredConstructor(Entities.class).newInstance(entities);
+        ei.setWeight(Double.parseDouble(eiSetting[1]));
+      }
     }
-
     return eis;
   }
 
@@ -430,7 +454,9 @@ public class SimilaritySettings implements Serializable {
        
     if (avgPropFile.exists()) {
       Properties avgProp = new Properties();
-      avgProp.load(new FileReader(avgPropFile));
+      FileReader fr = new FileReader(avgPropFile);
+      avgProp.load(fr);
+      fr.close();
       
       if (avgProp.containsKey(identifier)) {
         String[] avgMax = avgProp.getProperty(identifier).split(":");
@@ -439,11 +465,11 @@ public class SimilaritySettings implements Serializable {
         double normAvg = avg / max;
         return normAvg;
       } else {
-        System.err.println("Couldn't load averages for " + identifier + ", run AverageSimilarityScoresCalculator");
+        logger.error("Couldn't load averages for " + identifier + ", run AverageSimilarityScoresCalculator");
         return -1.0;
       }
     } else {
-      System.err.println("Couldn't load averages.properties from the settings dir, run AverageSimilarityScoresCalculator");
+      logger.error("Couldn't load averages.properties from the settings dir, run AverageSimilarityScoresCalculator");
       return -1.0;
     }
   }
@@ -498,5 +524,92 @@ public class SimilaritySettings implements Serializable {
   
   public void setLshDatabaseTable(String lshDatabaseTable) {
     this.lshDatabaseTable = lshDatabaseTable;
+  }
+
+  public String getMentionEntityKeyphraseSourceExclusion() {
+    return mentionEntityKeyphraseSourceExclusion;
+  }
+
+  public void setMentionEntityKeyphraseSourceExclusion(
+      String mentionEntityKeyphraseSourceExclusion) {
+    this.mentionEntityKeyphraseSourceExclusion = mentionEntityKeyphraseSourceExclusion;
+  }
+
+  public String getEntityEntityKeyphraseSourceExclusion() {
+    return entityEntityKeyphraseSourceExclusion;
+  }
+
+  public void setEntityEntityKeyphraseSourceExclusion(String entityEntityKeyphraseSourceExclusion) {
+    this.entityEntityKeyphraseSourceExclusion = entityEntityKeyphraseSourceExclusion;
+  }
+
+  public double getMinimumEntityKeyphraseWeight() {
+    return minimumEntityKeyphraseWeight;
+  }
+  
+  public void setMinimumEntityKeyphraseWeight(double minimumEntityKeyphraseWeight) {
+    this.minimumEntityKeyphraseWeight = minimumEntityKeyphraseWeight;
+  }
+
+  public int getMaxEntityKeyphraseCount() {
+    return maxEntityKeyphraseCount;
+  }
+
+  public void setMaxEntityKeyphraseCount(int maxEntityKeyphraseCount) {
+    this.maxEntityKeyphraseCount = maxEntityKeyphraseCount;
+  }
+  
+  public Map<String, Object> getAsMap() {
+    Map<String, Object> s = new HashMap<String, Object>();
+    if (mentionEntitySimilarities != null) {
+      List<String> expanded = 
+          new ArrayList<String>(mentionEntitySimilarities.size());
+      for (String[] sim : mentionEntitySimilarities) {
+        expanded.add(StringUtils.join(sim, ":"));
+      }
+      String sims = StringUtils.join(expanded, " ");
+      s.put("mentionEntitySimilarities", sims);
+    }
+    if (entityImportancesSettings != null) {
+      List<String> expanded = 
+          new ArrayList<String>(entityImportancesSettings.size());
+      for (String[] sim : entityImportancesSettings) {
+        expanded.add(StringUtils.join(sim, ":"));
+      }
+      String sims = StringUtils.join(expanded, " ");
+      s.put("entityImportancesSettings", sims);
+    }
+    if (entityEntitySimilarities != null) {
+      List<String> expanded = 
+          new ArrayList<String>(entityEntitySimilarities.size());
+      for (String[] sim : entityEntitySimilarities) {
+        expanded.add(StringUtils.join(sim, ":"));
+      }
+      String sims = StringUtils.join(expanded, " ");
+      s.put("entityEntitySimilarities", sims);
+    }
+    s.put("maxEntityRank", String.valueOf(priorWeight));
+    s.put("nullMappingThreshold", String.valueOf(priorThreshold));
+    s.put("includeNullAsEntityCandidate", String.valueOf(numberOfEntityKeyphrase));
+    s.put("includeContextMentions", String.valueOf(entityCohKeyphraseAlpha));
+    s.put("entityCohKeywordAlpha", String.valueOf(entityCohKeywordAlpha));
+    s.put("normalizeCoherenceWeights", String.valueOf(normalizeCoherenceWeights));
+    s.put("shouldAverageCoherenceWeights", String.valueOf(shouldAverageCoherenceWeights));
+    s.put("useConfusableMIWeights", String.valueOf(useConfusableMIWeights));
+    s.put("lshBandSize", String.valueOf(lshBandSize));
+    s.put("lshBandCount", String.valueOf(lshBandCount));
+    s.put("lshDatabaseTable", String.valueOf(lshDatabaseTable));
+    s.put("nGramLength", String.valueOf(nGramLength));
+    s.put("minimumEntityKeyphraseWeight", String.valueOf(minimumEntityKeyphraseWeight));
+    if (mentionEntityKeyphraseSourceExclusion != null) {
+      s.put("mentionEntityKeyphraseSourceExclusion", mentionEntityKeyphraseSourceExclusion);
+    }
+    if (entityEntityKeyphraseSourceExclusion != null) {
+      s.put("entityEntityKeyphraseSourceExclusion", entityEntityKeyphraseSourceExclusion);
+    }
+    if (identifier != null) {
+      s.put("identifier", identifier);
+    }
+    return s;
   }
 }

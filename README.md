@@ -31,13 +31,15 @@ To use AIDA with YAGO2, download the repository we provide on our [AIDA website]
 
 Get the Entity Repository (24 GB):
 
-    curl -O http://www.mpi-inf.mpg.de/yago-naga/aida/download/entity-repository/AIDA_entity_repository_2010-08-17v2.sql.bz2
+    curl -O http://www.mpi-inf.mpg.de/yago-naga/aida/download/entity-repository/AIDA_entity_repository_2010-08-17v4.sql.bz2
     
 Import it into a postgres database:
 
-    bzcat AIDA_entity_repository_2010-08-17v2.sql.bz2 | psql <DATABASE>
+    bzcat AIDA_entity_repository_2010-08-17v4.sql.bz2 | psql <DATABASE>
     
 where <DATABASE> is a database on a PostgreSQL server.
+
+A database dump on a more recent version of Wikipedia is also available: http://www.mpi-inf.mpg.de/yago-naga/aida/download/entity-repository/AIDA_entity_repository_2012-11-01v4.sql.bz2
 
 ## Setting up AIDA
 
@@ -79,7 +81,9 @@ See the `mpi.aida.config.settings.disambiguation` package for all possible prede
 
 * `PriorOnlyDisambiguationSettings`: Annotate each mention with the most prominent entity.
 * `LocalDisambiguationSettings`: Use the entity prominence and the keyphrase-context similarity to disambiguate.
+* `FastLocalDisambiguationSettings`: Same as above but sacrificing a bit of accuracy for roughly 5 times quicker disambiguation by dropping low weight keyphrases.
 * `CocktailPartyDisambiguationSettings`: Use a graph algorithm on the entity coherence graph ([MilneWitten] link coherence) to disambiguate. 
+* `FastCocktailPartyDisambiguationSettings`: Same as above but sacrificing a bit of accuracy for roughly 5 times quicker disambiguation by dropping low weight keyphrases
 * `CocktailPartyKOREDisambiguationSettings`: Use a graph algorithm on the entity coherence graph ([KORE] link coherence) to disambiguate. 
 
 ## Hands-On Command Line Call Example
@@ -101,7 +105,7 @@ Instead of `GRAPH`, you can put one of the following, corresponding to the setti
 * `GRAPH`: CocktailPartyDisambiguationSettings
 * `GRAPH-KORE`: CocktailPartyKOREDisambiguationSettings
 
-The output will be an HTML file with annotated mentions, linking to the corresponding Wikipedia page.
+The output will be an HTML file with annotated mentions, linking to the corresponding Wikipedia page. It also contains the IDs of the entities in the entity repository used.
 
 ## Input Format
 
@@ -128,7 +132,9 @@ These pre-configured `DisambiguatorSettings` objects can be passed to the `Disam
 
 * `PriorOnlyDisambiguationSettings`: Annotate each mention with the most prominent entity.
 * `LocalDisambiguationSettings`: Use the entity prominence and the keyphrase-context similarity to disambiguate.
-* `CocktailPartyDisambiguationSettings`: Use a graph algorithm on the entity coherence graph ([MilneWitten] link coherence) to disambiguate. 
+* `FastLocalDisambiguationSettings`: Same as above but sacrificing a bit of accuracy for roughly 5 times quicker disambiguation by dropping low weight keyphrases.
+* `CocktailPartyDisambiguationSettings`: Use a graph algorithm on the entity coherence graph ([MilneWitten] link coherence) to disambiguate.
+* `FastCocktailPartyDisambiguationSettings`: Same as above but sacrificing a bit of accuracy for roughly 5 times quicker disambiguation by dropping low weight keyphrases
 * `CocktailPartyKOREDisambiguationSettings`: Use a graph algorithm on the entity coherence graph ([KORE] link coherence) to disambiguate. 
 
 #### DisambiguationSettings Parameters
@@ -153,6 +159,8 @@ The edge weights of the disambiguation graph are configured in the `similaritySe
 * `mentionEntitySimilarities`: a list of mention-entity similarity triples. The first one is the SimilarityMeasure, the second the EntitiesContext, the third the weight of this mentionEntitySimilarity. Note that they need to add up to 1.0, including the number for the priorWeight option. If loading from a file, the triples are separated by ":". The mentionEntitySimilarities option also allows to enable or disable the first or second half of the mention-entity similarities based on the priorThreshold option. If this is present, the first half of the list is used when the prior is disable, the second one when it is enabled. Note that still the whole list weights need to sum up to 1 with the prior, the EnsembleMentionEntitySimilarity class will take care of appropriate re-scaling.
 * `priorWeight`: The weight of the prior probability. Needs to sum up to 1.0 with all weights in mentionEntitySimilarities.
 * `priorThreshold`: If set, the first half of mentionEntitySimilarities will be used for the mention-entity similarity when the best prior for an entity candidate is below the given threshold, otherwise the second half of the list together with the prior is used.
+* `minimumEntityKeyphraseWeight`: The minimum weight of a keyphrase to be considered for disambiguation. Use this to trade of quality and running time. A value of 0.002 made the disambiguation 5 times faster with little loss in accuracy (in combination with `maxEntityKeyphraseCount`, see below).
+* `maxEntityKeyphraseCount`: The maximum number of keyphrases per entity to be considered for disambiguation. Use this to trade of quality and running time. A value of 1000 made the disambiguation 5 times faster with little loss in accuracy (in combination with `minimumEntityKeyphraseWeight`, see above).
 * `entityEntitySimilarity`: The name and the weight of the entity-entity similarity to use, as pairs of name and weight. If loading from a file, the pairs are ":"-separated.
 
 Take our default configuration as example (in File syntax):

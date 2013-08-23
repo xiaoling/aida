@@ -26,6 +26,10 @@ import org.slf4j.LoggerFactory;
 import basics.Basics;
 import basics.Normalize;
 
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+
 public class GenerateWebHtml {
   private static final Logger logger = 
       LoggerFactory.getLogger(GenerateWebHtml.class);
@@ -69,6 +73,42 @@ public class GenerateWebHtml {
     return toHtml(result, entitiesTypes);
   }
 
+  /**
+   * Similar to process() method, but accepts JSON instead of DisambiguationResults object reference.
+   * 
+   * @param text
+   * @param input
+   * @param jsonRepr
+   * @param generateTypeInformation
+   * @return  HTML version of result.
+   * @throws Exception
+   */
+  public String processJSON(String text, PreparedInput input, String jsonRepr, boolean generateTypeInformation) throws Exception {
+    if (jsonRepr == null || jsonRepr.equals("")) {
+      return "<div></div>";
+    }
+    Result result = new Result(input.getDocId(), text, input.getTokens(), "html");
+    JSONParser jParser = new JSONParser();
+    JSONObject temp = (JSONObject)jParser.parse(jsonRepr);
+    JSONArray tmpJsonArr = (JSONArray)temp.get("mentions");
+    Iterator it = tmpJsonArr.iterator();
+    Map<String, List<String>> entitiesTypes = new HashMap<String, List<String>>();
+    while(it.hasNext()){
+      JSONObject mention = (JSONObject)it.next();
+      
+      JSONObject entity = (JSONObject)mention.get("bestEntity");
+      List<String> entityTypes = new ArrayList<String>();
+      entityTypes.add(Basics.ENTITY);
+      entitiesTypes.put((String)entity.get("name"), entityTypes);
+      mpi.aida.util.htmloutput.ResultMention rMention = 
+        new mpi.aida.util.htmloutput.ResultMention(
+            "html", ((Long)mention.get("offset")).intValue(), ((Long)mention.get("length")).intValue(), 
+            (String)mention.get("name"), (String)entity.get("name"), Double.parseDouble((String)entity.get("disambiguationScore")), true);
+      result.addFinalentity(rMention);
+    }
+    return toHtml(result, entitiesTypes);
+  }
+  
   private Map<String, List<String>> loadEntitiesTypes(DisambiguationResults results) {
     Set<String> entities = new HashSet<String>();
     DisambiguationResults disResults = results;

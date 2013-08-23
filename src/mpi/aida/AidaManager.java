@@ -6,12 +6,12 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -45,35 +45,53 @@ import org.slf4j.LoggerFactory;
 import basics.Normalize;
 
 public class AidaManager {
+
   private static Logger slogger_ = LoggerFactory.getLogger(AidaManager.class);
-  
+
   // This is more couple to SQL than it should be. Works for now.
   public static final String DB_AIDA = "DatabaseAida";
+
   public static final String DB_YAGO2_FULL = "DatabaseYago2Full";
+
   public static final String DB_YAGO2_SPOTLX = "DatabaseYago2SPOTLX";
+
   public static final String DB_RMI_LOGGER = "DatabaseRMILogger";
 
+  public static final String DB_GND = "DatabaseGND";
+
+  public static final String DB_HYENA = "DatabaseHYENA";
+
   private static String databaseAidaConfig = "database_aida.properties";
-  private static String databaseOokbeConfig = "database_ookbe.properties";
+
   private static String databaseYAGO2FullConfig = "database_yago2full.properties";
+
   private static String databaseYAGO2SPOTLXConfig = "database_yago2spotlx.properties";
+
   private static String databaseRMILoggerConfig = "databaseRmiLogger.properties";
 
+  private static String databaseGNDConfig = "database_gnd.properties";
+
+  private static String databaseHYENAConfig = "database_hyena.properties";
+
   public static final String WIKIPEDIA_PREFIX = "http://en.wikipedia.org/wiki/";
+
   public static final String YAGO_PREFIX = "http://yago-knowledge.org/resource/";
-  
-  public static final String WORD_EXPANSION_CACHE = "aida-word_expansions.cache";
-  
-  private static Map<String, String> dbIdToConfig = 
-      new HashMap<String, String>();
-  
+
+  private static final String WORD_EXPANSION_CACHE = "aida-word_expansions.cache";
+
+  private static final String DATABASE_AIDA_CONFIG_CACHE = "database_aida.cache";
+
+  private static Map<String, String> dbIdToConfig = new HashMap<String, String>();
+
   static {
     dbIdToConfig.put(DB_AIDA, databaseAidaConfig);
-    dbIdToConfig.put(DB_YAGO2_FULL, databaseYAGO2FullConfig);   
+    dbIdToConfig.put(DB_YAGO2_FULL, databaseYAGO2FullConfig);
     dbIdToConfig.put(DB_YAGO2_SPOTLX, databaseYAGO2SPOTLXConfig);
     dbIdToConfig.put(DB_RMI_LOGGER, databaseRMILoggerConfig);
+    dbIdToConfig.put(DB_GND, databaseGNDConfig);
+    dbIdToConfig.put(DB_HYENA, databaseHYENAConfig);
   }
-  
+
   private static AidaManager tasks = null;
 
   /** Preloaded word expansions. */
@@ -124,9 +142,6 @@ public class AidaManager {
     if (AidaConfig.getBoolean(AidaConfig.CACHE_WORD_EXPANSIONS)) {
       try {
         wordExpansions_ = createAndLoadCache();
-      } catch (FileNotFoundException e) {
-        slogger_.warn("Could not find cache file, reading from DB.", e);
-        wordExpansions_ = DataAccess.getAllWordExpansions();
       } catch (IOException e) {
         slogger_.warn("Could not read cache file, reading from DB.", e);
         wordExpansions_ = DataAccess.getAllWordExpansions();
@@ -138,37 +153,56 @@ public class AidaManager {
     slogger_.info("Done loading word_expansions.");
   }
 
-  private static int[] createAndLoadCache() throws FileNotFoundException, IOException {
+  private static int[] createAndLoadCache() throws IOException {
+    boolean requireReadFromDB = false;
     int[] wordExps = null;
     File wordExpansionCache = new File(WORD_EXPANSION_CACHE);
     if (wordExpansionCache.exists()) {
-      slogger_.info("Loading word_expansions from cache.");
-      DataInputStream in = 
-          new DataInputStream(
-              new BufferedInputStream(
-                  new GZIPInputStream(
-                      new FileInputStream(wordExpansionCache))));
-      wordExps = new int[in.readInt()];
-      for (int i = 0; i < wordExps.length; ++i) {
-        wordExps[i] = in.readInt();
+      File cachedDBConfigFile = new File(DATABASE_AIDA_CONFIG_CACHE);
+      Properties currentAIDADBConfig = ClassPathUtils.getPropertiesFromClasspath(databaseAidaConfig);
+      Properties cachedAIDADBConfig = new Properties();
+      cachedAIDADBConfig.load(new BufferedInputStream(new FileInputStream(cachedDBConfigFile)));
+
+      if (currentAIDADBConfig.equals(cachedAIDADBConfig)) {
+
+        slogger_.info("Loading word_expansions from cache.");
+        DataInputStream in = new DataInputStream(new BufferedInputStream(new GZIPInputStream(new FileInputStream(wordExpansionCache))));
+        wordExps = new int[in.readInt()];
+        for (int i = 0; i < wordExps.length; ++i) {
+          wordExps[i] = in.readInt();
+        }
+        in.close();
+      } else {
+        slogger_.info("Word expansion cache file exists, but DB config has been changed since it was created; DB access is unavoidable!");
+        //there is a change in the DB config
+        // do a clean up and require a DB access
+        wordExpansionCache.delete();
+        cachedDBConfigFile.delete();
+        requireReadFromDB = true;
       }
-      in.close();
     } else {
+      //no cached file exists
+      slogger_.info("Word expansions cache file doesn't exist.");
+      requireReadFromDB = true;
+    }
+
+    if (requireReadFromDB) {
       slogger_.info("Loading word_expansions from DB.");
       wordExps = DataAccess.getAllWordExpansions();
       slogger_.info("Caching word_expansions to disk.");
       // Cache to disk for next run.
-      DataOutputStream out = 
-          new DataOutputStream(
-              new BufferedOutputStream(
-                  new GZIPOutputStream(
-                      new FileOutputStream(wordExpansionCache))));
+      DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new GZIPOutputStream(new FileOutputStream(wordExpansionCache))));
       out.writeInt(wordExps.length);
       for (int exp : wordExps) {
         out.writeInt(exp);
       }
+
       out.flush();
       out.close();
+      slogger_.info("Caching DB Config!");
+      Properties currentAIDADBConfig = ClassPathUtils.getPropertiesFromClasspath(databaseAidaConfig);
+      File cachedDBConfigFile = new File(DATABASE_AIDA_CONFIG_CACHE);
+      currentAIDADBConfig.store(new BufferedOutputStream(new FileOutputStream(cachedDBConfigFile)), "cached aida DB config");
     }
     return wordExps;
   }
@@ -239,8 +273,7 @@ public class AidaManager {
   public static synchronized DBConnection getConnectionForDatabase(String dbId, String req) throws SQLException {
     if (!MultipleDBManager.isConnected(dbId)) {
       try {
-        Properties prop = ClassPathUtils
-            .getPropertiesFromClasspath(dbIdToConfig.get(dbId));
+        Properties prop = ClassPathUtils.getPropertiesFromClasspath(dbIdToConfig.get(dbId));
         String type = prop.getProperty("type");
         String service = null;
         if (type.equalsIgnoreCase("Oracle")) {
@@ -253,35 +286,26 @@ public class AidaManager {
         String username = prop.getProperty("username");
         String password = prop.getProperty("password");
         Integer maxCon = Integer.parseInt(prop.getProperty("maxConnection"));
-        
-        DBSettings settings = new DBSettings(
-            hostname, port, username, password, maxCon, type, service);
+
+        DBSettings settings = new DBSettings(hostname, port, username, password, maxCon, type, service);
         MultipleDBManager.addDatabase(dbId, settings);
-        slogger_.info("Connecting to " + type + " database " + username + "@" +
-                       hostname + ":" + port + "/" + service);
+        slogger_.info("Connecting to " + type + " database " + username + "@" + hostname + ":" + port + "/" + service);
       } catch (Exception e) {
-    	  slogger_.error(
-    	      "Error connecting to the AIDA database: " + e.getLocalizedMessage());
-    	}
+        slogger_.error("Error connecting to the AIDA database: " + e.getLocalizedMessage());
+      }
     }
     if (!MultipleDBManager.isConnected(dbId)) {
-      slogger_.error("Could not connect to the AIDA database. " +
-      		"Please check the settings in 'settings/database_aida.properties'" +
-      		"and make sure the Postgres server is up and running.");
+      slogger_.error("Could not connect to the AIDA database. " + "Please check the settings in 'settings/database_aida.properties'"
+          + "and make sure the Postgres server is up and running.");
       return null;
-    }    
+    }
     return MultipleDBManager.getConnection(dbId, req);
   }
 
   public static void releaseConnection(String dbId, DBConnection con) {
     MultipleDBManager.releaseConnection(dbId, con);
   }
-  
-  public static String getOokbeDatabasePath() throws IOException {
-    Properties prop = ClassPathUtils.getPropertiesFromClasspath(databaseOokbeConfig);
-    return prop.getProperty("path");
-  }
-  
+
   /**
    * Gets an AIDA entity for the given YAGO entity id.
    * This is slow, as it accesses the DB for each call.
@@ -294,7 +318,7 @@ public class AidaManager {
   public static Entity getEntity(String yagoEntityId) {
     return new Entity(yagoEntityId, DataAccess.getIdForYagoEntityId(yagoEntityId));
   }
-  
+
   /**
    * Gets an AIDA entity for the given AIDA entity id.
    * This is slow, as it accesses the DB for each call.
@@ -307,7 +331,7 @@ public class AidaManager {
   public static Entity getEntity(int entityId) {
     return new Entity(DataAccess.getYagoEntityIdForId(entityId), entityId);
   }
-  
+
   /**
    * Creates the Wikipedia link for a given ResultEntity.
    * 
@@ -319,7 +343,7 @@ public class AidaManager {
     String titlePart = Normalize.unEntity(entity.getName()).replace(' ', '_');
     return WIKIPEDIA_PREFIX + titlePart;
   }
-  
+
   /**
    * Creates the YAGO identifier for a given ResultEntity.
    * 
@@ -331,7 +355,7 @@ public class AidaManager {
     String titlePart = Normalize.unEntity(entity.getName()).replace(' ', '_');
     return YAGO_PREFIX + titlePart;
   }
-    
+
   /**
    * Creates the Wikipedia link for a given entity.
    * 
@@ -342,7 +366,7 @@ public class AidaManager {
     String titlePart = Normalize.unEntity(entity.getName()).replace(' ', '_');
     return WIKIPEDIA_PREFIX + titlePart;
   }
-  
+
   /**
    * Creates the YAGO identifier for a given entity.
    * 
@@ -352,9 +376,8 @@ public class AidaManager {
   public static String getYAGOIdentifier(Entity entity) {
     String titlePart = Normalize.unEntity(entity.getName()).replace(' ', '_');
     return YAGO_PREFIX + titlePart;
-  }  
-  
-  
+  }
+
   /**
    * Returns the potential entity candidates for a mention (via the YAGO
    * 'means' relation)
@@ -367,6 +390,7 @@ public class AidaManager {
   public static Entities getEntitiesForMention(String mention) {
     return DataAccess.getEntitiesForMention(mention, 1.0);
   }
+
   /**
    * Returns the potential entity candidates for a mention (via the YAGO
    * 'means' relation)
@@ -393,7 +417,7 @@ public class AidaManager {
    *         their prior probability
    * @throws SQLException
    */
-  public static Entities getEntitiesForMention(Mention  mention, List<String> filteringTypes, double maxEntityRank) throws SQLException {
+  public static Entities getEntitiesForMention(Mention mention, List<String> filteringTypes, double maxEntityRank) throws SQLException {
     Entities entities = getEntitiesForMention(mention, maxEntityRank);
     Entities filteredEntities = new Entities();
     for (Entity entity : entities) {
@@ -409,12 +433,10 @@ public class AidaManager {
     return filteredEntities;
   }
 
-  
   public static Map<String, Gender> getGenderForEntities(Entities entities) {
     return DataAccess.getGenderForEntities(entities);
   }
 
-  
   public static void fillInCandidateEntities(Mentions mentions) throws SQLException {
     fillInCandidateEntities(null, mentions, false, false, 1.0);
   }
@@ -431,34 +453,44 @@ public class AidaManager {
    * and 1.0 (all). The ranks are taken from the entity_rank table.
    * @throws SQLException
    */
-  public static void fillInCandidateEntities(
-      String docId, Mentions mentions, boolean includeNullEntityCandidates, 
-      boolean includeContextMentions, double maxEntityRank) throws SQLException {
+  public static void fillInCandidateEntities(String docId, Mentions mentions, boolean includeNullEntityCandidates, boolean includeContextMentions,
+      double maxEntityRank) throws SQLException {
     List<String> filteringTypes = mentions.getEntitiesTypes();
     for (int i = 0; i < mentions.getMentions().size(); i++) {
       Mention m = mentions.getMentions().get(i);
       Entities mentionCandidateEntities;
-      if (malePronouns.contains(m.getMention())
-          || femalePronouns.contains(m.getMention())) {
+      if (malePronouns.contains(m.getMention()) || femalePronouns.contains(m.getMention())) {
         setCandiatesFromPreviousMentions(mentions, i);
       } else {
+
         if (filteringTypes != null) {
-          mentionCandidateEntities = AidaManager.getEntitiesForMention(m,
-              filteringTypes, maxEntityRank);
+          mentionCandidateEntities = AidaManager.getEntitiesForMention(m, filteringTypes, maxEntityRank);
         } else {
-          mentionCandidateEntities = AidaManager.getEntitiesForMention(m,
-              maxEntityRank);
+          mentionCandidateEntities = AidaManager.getEntitiesForMention(m, maxEntityRank);
         }
+
         if (includeNullEntityCandidates) {
-          Entity ookbEntity = new Entity(Entities.getMentionNMEKey(m.getMention()), 0);
-          mentionCandidateEntities.add(ookbEntity);
+          Entity nmeEntity = new Entity(Entities.getMentionNMEKey(m.getMention()), -1);
+
+          // add surrounding mentions as context
+          if (includeContextMentions) {
+            List<String> surroundingMentionsNames = new LinkedList<String>();
+            int begin = Math.max(i - 2, 0);
+            int end = Math.min(i + 3, mentions.getMentions().size());
+
+            for (int s = begin; s < end; s++) {
+              if (s == i) continue; // skip mention itself
+              surroundingMentionsNames.add(mentions.getMentions().get(s).getMention());
+            }
+            nmeEntity.setSurroundingMentionNames(surroundingMentionsNames);
+          }
+
+          mentionCandidateEntities.add(nmeEntity);
         }
         m.setCandidateEntities(mentionCandidateEntities);
       }
     }
   }
-
-
 
   private static void setCandiatesFromPreviousMentions(Mentions mentions, int mentionIndex) {
     Mention mention = mentions.getMentions().get(mentionIndex);
@@ -483,7 +515,8 @@ public class AidaManager {
 
     Entities filteredCandidates = new Entities();
     for (Entity e : allPrevCandidates) {
-      if (entitiesGenders != null && entitiesGenders.containsKey(e.getName()) && entitiesGenders.get(e.getName()) == targetGender) filteredCandidates.add(e);
+      if (entitiesGenders != null && entitiesGenders.containsKey(e.getName()) && entitiesGenders.get(e.getName()) == targetGender) filteredCandidates
+          .add(e);
     }
     mention.setCandidateEntities(filteredCandidates);
   }
@@ -500,7 +533,7 @@ public class AidaManager {
   }
 
   // singleton class methods private methods  
-  
+
   private FilterMentions filterMention = null;
 
   private AidaManager() {
@@ -526,9 +559,7 @@ public class AidaManager {
   }
 
   private boolean checkIsNamedEntity(String entity) {
-    if (Normalize.unWordNetEntity(entity) == null 
-        && Normalize.unWikiCategory(entity) == null 
-        && Normalize.unGeonamesClass(entity) == null 
+    if (Normalize.unWordNetEntity(entity) == null && Normalize.unWikiCategory(entity) == null && Normalize.unGeonamesClass(entity) == null
         && Normalize.unGeonamesEntity(entity) == null) {
       return true;
     } else {

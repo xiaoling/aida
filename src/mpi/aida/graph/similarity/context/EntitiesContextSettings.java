@@ -2,9 +2,15 @@ package mpi.aida.graph.similarity.context;
 
 
 public class EntitiesContextSettings {
+  public enum EntitiesContextType {
+    MENTION_ENTITY, ENTITY_ENTITY
+  }
+  
+  private EntitiesContextType contextType = EntitiesContextType.MENTION_ENTITY;
+    
   private int numberOfEntityKeyphrases = Integer.MAX_VALUE;
   
-  private boolean normalizeWeights = true; // default is to normalize
+  private boolean normalizeWeights = false; // default is not to normalize.
   private boolean useConfusableMIWeight = false;
   private boolean averageWeights = false;
 
@@ -16,13 +22,17 @@ public class EntitiesContextSettings {
   private double entityCoherenceKeyphraseAlpha = DEFAULT_KEYPHRASE_ALPHA;
   private double entityCoherenceKeywordAlpha = DEFAULT_KEYWORD_ALPHA;
     
-  private String keyphraseSourceExclusion;  
+  // Different keyphrase exclusion for MentionEntity and EntityEntity.
+  private String mentionEntityKeyphraseSourceExclusion;
+  private String entityEntityKeyphraseSourceExclusion;
+  private double minimumEntityKeyphraseWeight;
+  private int maxEntityKeyphraseCount;
   
   // LSH
   private int lshBandSize;
   private int lshBandCount;
   private String lshDatabaseTable;
-  
+    
   /**
    * 
    * @return Balance between Keyphrase MI/IDF. Use alpha*mi, (1-alpha)*idf 
@@ -55,14 +65,21 @@ public class EntitiesContextSettings {
     this.numberOfEntityKeyphrases = numberOfEntityKeyphrases;
   }
 
-
-  public String getKeyphraseSourceExclusion() {
-    return keyphraseSourceExclusion;
+  public String getEntityEntityKeyphraseSourceExclusion() {
+    return entityEntityKeyphraseSourceExclusion;
   }
 
+  public void setEntityEntityKeyphraseSourceExclusion(String entityEntityKeyphraseSourceExclusion) {
+    this.entityEntityKeyphraseSourceExclusion = entityEntityKeyphraseSourceExclusion;
+  }
 
-  public void setKeyphraseSourceExclusion(String keyphraseSourceExclusion) {
-    this.keyphraseSourceExclusion = keyphraseSourceExclusion;
+  public String getMentionEntityKeyphraseSourceExclusion() {
+    return mentionEntityKeyphraseSourceExclusion;
+  }
+
+  public void setMentionEntityKeyphraseSourceExclusion(
+      String mentionEntityKeyphraseSourceExclusion) {
+    this.mentionEntityKeyphraseSourceExclusion = mentionEntityKeyphraseSourceExclusion;
   }
 
   public boolean shouldNormalizeWeights() {
@@ -72,7 +89,6 @@ public class EntitiesContextSettings {
   public void setShouldNormalizeWeights(boolean flag) {
     normalizeWeights = flag;
   }
-
 
   public boolean shouldUseConfusableMIWeight() {
     return useConfusableMIWeight;
@@ -120,5 +136,29 @@ public class EntitiesContextSettings {
  
   public void setLshDatabaseTable(String lshDatabaseTable) {
     this.lshDatabaseTable = lshDatabaseTable;
+  }
+
+  public double getMinimumEntityKeyphraseWeight() {
+    return minimumEntityKeyphraseWeight;
+  }
+
+  public void setMinimumEntityKeyphraseWeight(double minimumEntityKeyphraseWeight) {
+    this.minimumEntityKeyphraseWeight = minimumEntityKeyphraseWeight;
+  }
+
+  public EntitiesContextType getEntitiesContextType() {
+    return contextType;
+  }
+
+  public void setEntitiesContextType(EntitiesContextType contextType) {
+    this.contextType = contextType;
+  }
+
+  public int getMaxEntityKeyphraseCount() {
+    return maxEntityKeyphraseCount;
+  }
+
+  public void setMaxEntityKeyphraseCount(int maxEntityKeyphraseCount) {
+    this.maxEntityKeyphraseCount = maxEntityKeyphraseCount;
   }
 } 

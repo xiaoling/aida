@@ -15,6 +15,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
+
+import javatools.parsers.Char;
+import mpi.aida.access.DataAccess;
+import mpi.aida.data.EntityMetaData;
+import mpi.aida.util.CollectionUtils;
 
 import org.apache.commons.lang.StringUtils;
 
@@ -404,6 +410,7 @@ public class GraphTracer {
 		List<TracingEntity> remainingCandiditesInFinalGraph = mentionCandidatesFinalMap
 				.get(mention);
 		Collections.sort(allCandidites);
+		Map<String, EntityMetaData> entitiesMetaData = loadEntitiesMetaData(allCandidites);
 		sb.append("<table>");
 		sb.append("<tr>");
 		sb.append("<th>Candidate Entity</th><th>ME Similarity</th><th>Weighted Degree</th><th>Weighted Degree when removed/final</th><th>Connected Entities</th>");
@@ -438,18 +445,23 @@ public class GraphTracer {
 			
 			StringBuilder entitiesInfo = new StringBuilder();
 			
-			for (String e : te.connectedEntities.keySet()) {
-			  entitiesInfo.append(e + " ("+te.connectedEntities.get(e) +") --- ");
-			}
+      Map<String, Double> connectedEntities = CollectionUtils.sortMapByValue(te.connectedEntities, true);
+      for (Entry<String, Double> e : connectedEntities.entrySet()) {
+        entitiesInfo.append(e.getKey() + " ("+ e.getValue() +") --- ");
+      }
 			
 			String entities = entitiesInfo.toString();
 			String entryId = (mention + "-" + te.entity).replace("\\", "");
 
+			String uriString = entitiesMetaData.get(te.entity).getUrl();//Char.encodeURIPathComponent(entityMetaData.getUrl());
+      String displayString = Char.toHTML(entitiesMetaData.get(te.entity).getHumanReadableRepresentation());
+            
+			String entityAnchor = "<a target='_blank' href='" + uriString + "'>" + displayString + "</a>";
 			sb.append("<tr style ='background-color:"
 					+ color
 					+ "'> "
 					+ "<td>"
-					+ te.entity
+					+ entityAnchor
 					+ "</td>"
 					+ "<td>"
 					+ te.MESimilairty
@@ -473,7 +485,17 @@ public class GraphTracer {
 		return sb.toString();
 	}
 
-	private void addCandidateToMentionsMap(
+	private Map<String, EntityMetaData> loadEntitiesMetaData(List<TracingEntity> allCandidites) {
+	  
+    Set<String> entities = new HashSet<String>();
+    for(TracingEntity candidate: allCandidites) {
+        entities.add(candidate.entity);
+    }
+
+    return DataAccess.getEntitiesMetaData(entities);
+  }
+
+  private void addCandidateToMentionsMap(
 			Map<String, List<TracingEntity>> mentionEntitiesMap,
 			String mention, String candidateEntity,
 			double entityWeightedDegree, double MESimilairty,

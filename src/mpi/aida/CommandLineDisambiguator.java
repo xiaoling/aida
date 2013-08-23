@@ -7,20 +7,27 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
+import mpi.aida.access.DataAccess;
 import mpi.aida.config.settings.DisambiguationSettings;
 import mpi.aida.config.settings.PreparationSettings;
 import mpi.aida.config.settings.disambiguation.CocktailPartyDisambiguationSettings;
 import mpi.aida.config.settings.disambiguation.CocktailPartyKOREDisambiguationSettings;
+import mpi.aida.config.settings.disambiguation.CocktailPartyKOREIDFDisambiguationSettings;
 import mpi.aida.config.settings.disambiguation.CocktailPartyKORELSHDisambiguationSettings;
+import mpi.aida.config.settings.disambiguation.LocalDisambiguationIDFSettings;
 import mpi.aida.config.settings.disambiguation.LocalDisambiguationSettings;
 import mpi.aida.config.settings.disambiguation.PriorOnlyDisambiguationSettings;
 import mpi.aida.config.settings.preparation.StanfordHybridPreparationSettings;
 import mpi.aida.data.DisambiguationResults;
-import mpi.aida.data.Entity;
+import mpi.aida.data.EntityMetaData;
 import mpi.aida.data.PreparedInput;
 import mpi.aida.data.ResultMention;
-import mpi.aida.util.htmloutput.GenerateWebHtml;
+import mpi.aida.data.ResultProcessor;
+import mpi.aida.util.htmloutput.HtmlGenerator;
 
 /**
  * Disambiguates a document using the default PRIOR, LOCAL or GRAPH settings,
@@ -60,8 +67,12 @@ public class CommandLineDisambiguator {
       disSettings = new PriorOnlyDisambiguationSettings();
     } else if (disambiguationTechniqueSetting.equals("LOCAL")) {
       disSettings = new LocalDisambiguationSettings();
+    } else if (disambiguationTechniqueSetting.equals("LOCAL-IDF")) {
+      disSettings = new LocalDisambiguationIDFSettings();
     } else if (disambiguationTechniqueSetting.equals("GRAPH")) {
       disSettings = new CocktailPartyDisambiguationSettings();
+    } else if (disambiguationTechniqueSetting.equals("GRAPH-IDF")) {
+      disSettings = new CocktailPartyKOREIDFDisambiguationSettings();
     } else if (disambiguationTechniqueSetting.equals("GRAPH-KORE")) {
       disSettings = new CocktailPartyKOREDisambiguationSettings();
     } else if (disambiguationTechniqueSetting.equals("GRAPH-KORELSH")) {
@@ -69,37 +80,25 @@ public class CommandLineDisambiguator {
     } else {
       System.err.println(
           "disambiguation-technique can be either: " +
-          "'PRIOR', 'LOCAL', 'GRAPH', or 'GRAPH-KORE");
+          "'PRIOR', 'LOCAL', 'LOCAL-IDF', 'GRAPH', 'GRAPH-IDF' or 'GRAPH-KORE");
       System.exit(2);
     }    
     
     Disambiguator d = new Disambiguator(input, disSettings);
     DisambiguationResults results = d.disambiguate();
-    GenerateWebHtml gen = new GenerateWebHtml();
-    String html = gen.process(content.toString(), input, results, false);
+ 
     
-    StringBuilder sb = new StringBuilder();
-    sb.append("<html><head><title>").append(inputFile).append("</title>");
-    sb.append("<meta http-equiv='content-type'");
-    sb.append("CONTENT='text/html; charset=utf-8' />");
-    sb.append("<style type='text/css'>");
-    sb.append(".eq { background-color:#87CEEB } ");
-    sb.append("</style>").append("<body>");
-    sb.append("<h1>").append(inputFile).append("</h1>");
-    sb.append("<h2>Annotated Text</h2>");
-    sb.append(html);
-    sb.append("<h2>All Mappings</h2>");
-    sb.append("<ul>");
-    for (ResultMention rm : results.getResultMentions()) {
-     sb.append("<li>" + rm + " -> " + results.getResultEntities(rm) + "</li>");
-    }
-    sb.append("</ul></body></html>");
-    
+    // retrieve JSON representation of Disambiguated results
+    ResultProcessor rp = new ResultProcessor(content.toString(), results, inputFile, input);
+    String jsonStr = rp.process();
+    System.out.println(jsonStr);
+    // generate HTML from Disambiguated Results
+    HtmlGenerator gen = new HtmlGenerator(content.toString(), jsonStr, inputFile, input);
+    String htmlContent = gen.constructFromJson(jsonStr);
     String resultFile = inputFile+".html";
     BufferedWriter writer = 
         new BufferedWriter(new OutputStreamWriter(
             new FileOutputStream(resultFile), "UTF-8"));
-    String htmlContent = sb.toString().replaceAll("\n", "<br />");
     writer.write(htmlContent);
     writer.flush();
     writer.close();
@@ -108,12 +107,20 @@ public class CommandLineDisambiguator {
     		"result written to '" + resultFile + '"');
     
     System.out.println("Mentions and Entities found:");
-    System.out.println("\tMention\tEntity\tWikipedia URL");
+    System.out.println("\tMention\tEntity_id\tEntity\tEntity Name\tURL");
+    
+    Set<String> entities = new HashSet<String>();
     for (ResultMention rm : results.getResultMentions()) {
-      Entity entity = 
-          AidaManager.getEntity(results.getBestEntity(rm).getEntity());
-      System.out.println(
-          "\t" + rm + "\t" + entity + "\t" + AidaManager.getWikipediaUrl(entity));
+      entities.add(results.getBestEntity(rm).getEntity());
+    }
+    Map<String, EntityMetaData> entitiesMetaData = DataAccess.getEntitiesMetaData(entities);
+    
+    for (ResultMention rm : results.getResultMentions()) {
+      String entity = results.getBestEntity(rm).getEntity();
+      EntityMetaData entityMetaData = entitiesMetaData.get(entity);
+
+      System.out.println("\t" + rm + "\t" + entityMetaData.getId() + "\t" + entity + "\t" + entityMetaData.getHumanReadableRepresentation() + "\t"
+          + entityMetaData.getUrl());
     }
   }
 
@@ -121,6 +128,6 @@ public class CommandLineDisambiguator {
     System.out.println("Usage:\n CommandLineDisambiguator " +
     		"<disambiguation-technique> <input-file.txt>");
     System.out.println("\tdisambiguation-technique: " +
-    		"PRIOR, LOCAL, GRAPH, or GRAPH-KORE");
+    		"PRIOR, LOCAL, LOCAL-IDF, GRAPH, GRAPH-IDF, or GRAPH-KORE");
   }
 }

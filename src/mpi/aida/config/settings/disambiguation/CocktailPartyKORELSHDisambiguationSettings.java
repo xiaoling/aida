@@ -54,7 +54,7 @@ public class CocktailPartyKORELSHDisambiguationSettings extends DisambiguationSe
     switchedKPsettings.setEntityCohKeyphraseAlpha(1.0);
     switchedKPsettings.setEntityCohKeywordAlpha(0.0);
     switchedKPsettings.setShouldNormalizeCoherenceWeights(true);
-    switchedKPsettings.setKeyphraseSourceExclusion(DataAccess.KPSOURCE_INLINKTITLE);
+    switchedKPsettings.setEntityEntityKeyphraseSourceExclusion(DataAccess.KPSOURCE_INLINKTITLE);
     switchedKPsettings.setLshBandSize(2);
     switchedKPsettings.setLshBandCount(100);
     switchedKPsettings.setLshDatabaseTable(DataAccessSQL.ENTITY_LSH_SIGNATURES);

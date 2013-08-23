@@ -13,6 +13,7 @@ import java.util.Set;
 
 import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
+import mpi.aida.data.EntityMetaData;
 import mpi.aida.data.Keyphrases;
 import mpi.aida.util.YagoUtil.Gender;
 
@@ -37,9 +38,7 @@ public interface DataAccessInterface {
   public List<String> getParentTypes(String queryType);
 
   public String getKeyphraseSource(String entityName, String keyphrase);
-
-  public Map<String, List<String>> getEntityKeyphrases(Set<String> entities);
-
+  
   public Map<String, List<String>> getKeyphraseEntities(Set<String> keyphrases);
 
   public Map<Entity, int[]> getEntityLSHSignatures(Entities entities);
@@ -83,6 +82,10 @@ public interface DataAccessInterface {
 
   public Keyphrases getEntityKeyphrases(Entities entities,
       String keyphraseSourceExclusion);
+  
+  public Keyphrases getEntityKeyphrases(
+      Entities entities, String keyphraseSourceExclusion,
+      double minKeyphraseWeight, int maxEntityKeyphraseCount);
 
   public TIntObjectHashMap<int[]> getAllInlinks();
 
@@ -91,4 +94,30 @@ public interface DataAccessInterface {
   public int getCollectionSize();
 
   public int getWordExpansion(int wordId);
+
+  public TIntObjectHashMap<String> getTypeNamesForIds(int[] ids);
+
+  public TObjectIntHashMap<String> getIdsForTypeNames(Collection<String> typeNames);
+  
+  public TIntObjectHashMap<int[]> getTypesIdsForEntitiesIds(int[] entitiesIds);
+  
+  public TIntObjectHashMap<int[]> getEntitiesIdsForTypesIds(int[] typesIds);
+  
+  public TIntObjectHashMap<int[]> getTypesIdsForEntities(Entities entities);
+
+  public Map<String, EntityMetaData> getEntitiesMetaData(Set<String> entities);
+
+  public EntityMetaData getEntityMetaData(String entity);
+
+  public TIntObjectHashMap<EntityMetaData> getEntitiesMetaData(int[] entitiesIds);
+
+  public EntityMetaData getEntityMetaData(int entityId);
+
+  public Map<String, Double> getEntitiesImportances(Set<String> entities);
+
+  public double getEntityImportance(String entity);
+
+  public TIntDoubleHashMap getEntitiesImportances(int[] entitiesIds);
+
+  public double getEntityImportance(int entityId);  
  }

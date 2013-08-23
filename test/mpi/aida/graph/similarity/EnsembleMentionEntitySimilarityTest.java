@@ -28,6 +28,7 @@ public class EnsembleMentionEntitySimilarityTest {
 
   public EnsembleMentionEntitySimilarityTest() {
     AidaConfig.set("dataAccess", "testing");
+    AidaConfig.set(AidaConfig.CACHE_WORD_EXPANSIONS, "false");
     AidaManager.init();
   }
   

@@ -10,7 +10,6 @@
 	<property name="build" location="./bin" />
 	<property name="external_jars" location="./lib" />
 	<property name="created_jars" location="./" />
-	<property name="resources" location="./resources" />
 	<property name="settings" location="./settings" />
 	<property name="test.reports" location="./reports" />
 	<property environment="env" />
@@ -35,9 +34,6 @@
 			</classpath>
 		</javac>
 		<copy todir="${build}">
-			<fileset dir="${resources}">
-				<exclude name="**/*.java" />
-			</fileset>
 			<fileset dir="${settings}">
 				<exclude name="**/*.java" />
 			</fileset>

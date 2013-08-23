@@ -10,6 +10,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import mpi.aida.config.AidaConfig;
 import mpi.aida.data.Entities;
 import mpi.aida.graph.similarity.context.EntitiesContext;
+import mpi.aida.graph.similarity.context.EntitiesContextSettings;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,10 +62,11 @@ public class EntitiesContextCreator {
   }
     
   public EntitiesContext getEntitiesContext(
-      String contextClassName, String docId, Entities entities) 
+      String contextClassName, String docId, Entities entities, 
+      EntitiesContextSettings entitiesContextSettings) 
           throws Exception {
     
-    String id = getCacheId(contextClassName, docId);
+    String id = getCacheId(contextClassName, docId, entitiesContextSettings);
     
     // Allow the parallel creation of distinct contexts but only
     // one creation per id.
@@ -79,7 +81,9 @@ public class EntitiesContextCreator {
         context = 
             (EntitiesContext) 
             Class.forName(contextClassName).
-              getDeclaredConstructor(Entities.class).newInstance(entities);
+              getDeclaredConstructor(
+                  Entities.class, EntitiesContextSettings.class).newInstance(
+                      entities, entitiesContextSettings);
         
         // Put it into the cache, deleting the oldest cache if the cache
         // size is exceeded.
@@ -104,8 +108,21 @@ public class EntitiesContextCreator {
     return context;
   }
   
-  private String getCacheId(String contextClassName, String docId) {
-    return contextClassName + "\t" + docId;
+  /**
+   * Creates the id so that contexts will be reusable. MentionEntitySimilarity
+   * and EntityEntitySimilarity contexts will not be shared as they might
+   * have different configurations.
+   * 
+   * @param contextClassName
+   * @param docId
+   * @param entitiesContextSettings
+   * @return
+   */
+  private String getCacheId(
+      String contextClassName, String docId, 
+      EntitiesContextSettings entitiesContextSettings) {
+    return contextClassName + "\t" + docId + "\t" + 
+           entitiesContextSettings.getEntitiesContextType();
   }
 
   private synchronized Lock getContextCreationLock(String id) {

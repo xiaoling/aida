@@ -31,6 +31,8 @@ public class Mention implements Serializable, Comparable<Mention> {
 
   private int id = -1;
   
+  private int[] types;
+  
   /**
    * Occurrence count either in the collection or in a document. Set as needed.
    */
@@ -184,5 +186,15 @@ public class Mention implements Serializable, Comparable<Mention> {
 
   public void setOccurrenceCount(int occurrenceCount) {
     this.occurrenceCount = occurrenceCount;
+  }
+
+  
+  public int[] getTypes() {
+    return types;
+  }
+
+  
+  public void setTypes(int[] types) {
+    this.types = types;
   }
 }

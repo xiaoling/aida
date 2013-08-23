@@ -18,6 +18,7 @@ import mpi.aida.AidaManager;
 import mpi.aida.access.DataAccess.type;
 import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
+import mpi.aida.data.EntityMetaData;
 import mpi.aida.data.Keyphrases;
 import mpi.aida.graph.similarity.measure.WeightComputation;
 import mpi.aida.util.YagoUtil.Gender;
@@ -262,10 +263,11 @@ public class DataAccessForTesting implements DataAccessInterface {
     
     return (double) offset / (double) orderedEntities.length;
   }
-
+  
   @Override
   public Keyphrases getEntityKeyphrases(Entities entities,
-      String keyphraseSourceExclusion) {
+      String keyphraseSourceExclusion, double minKeyphraseWeight,
+      int maxEntityKeyphraseCount) {
     Keyphrases keyphrases = new Keyphrases();
     TIntObjectHashMap<int[]> eKps = new TIntObjectHashMap<int[]>();
     TIntObjectHashMap<int[]> kpTokens = new TIntObjectHashMap<int[]>();
@@ -316,6 +318,13 @@ public class DataAccessForTesting implements DataAccessInterface {
       }
     }
     return keyphrases;
+  }
+  
+
+  @Override
+  public Keyphrases getEntityKeyphrases(Entities entities,
+      String keyphraseSourceExclusion) {
+    return getEntityKeyphrases(entities, keyphraseSourceExclusion, 0.0, 0);
   }
 
   @Override
@@ -427,12 +436,6 @@ public class DataAccessForTesting implements DataAccessInterface {
 
   @Override
   public String getKeyphraseSource(String entityName, String keyphrase) {
-    System.err.println("Accessed " + getMethodName());
-    return null;
-  }
-
-  @Override
-  public Map<String, List<String>> getEntityKeyphrases(Set<String> entities) {
     System.err.println("Accessed " + getMethodName());
     return null;
   }
@@ -648,5 +651,96 @@ public class DataAccessForTesting implements DataAccessInterface {
   @Override
   public int getWordExpansion(int wordId) {
     return getAllWordExpansions()[wordId];
+  }
+
+
+  @Override
+  public TIntObjectHashMap<String> getTypeNamesForIds(int[] ids) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+
+  @Override
+  public TObjectIntHashMap<String> getIdsForTypeNames(Collection<String> typeNames) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+
+  @Override
+  public TIntObjectHashMap<int[]> getTypesIdsForEntitiesIds(int[] entitiesIds) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+
+  @Override
+  public TIntObjectHashMap<int[]> getEntitiesIdsForTypesIds(int[] typesIds) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+
+  @Override
+  public TIntObjectHashMap<int[]> getTypesIdsForEntities(Entities entities) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+
+  @Override
+  public Map<String, EntityMetaData> getEntitiesMetaData(Set<String> entities) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+
+  @Override
+  public EntityMetaData getEntityMetaData(String entity) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+
+  @Override
+  public TIntObjectHashMap<EntityMetaData> getEntitiesMetaData(int[] entitiesIds) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+
+  @Override
+  public EntityMetaData getEntityMetaData(int entityId) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+
+  @Override
+  public Map<String, Double> getEntitiesImportances(Set<String> entities) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+
+  @Override
+  public double getEntityImportance(String entity) {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
+
+  @Override
+  public TIntDoubleHashMap getEntitiesImportances(int[] entitiesIds) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+
+  @Override
+  public double getEntityImportance(int entityId) {
+    // TODO Auto-generated method stub
+    return 0;
   }  
 }

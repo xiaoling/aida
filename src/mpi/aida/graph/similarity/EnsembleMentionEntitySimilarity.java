@@ -106,6 +106,7 @@ public class EnsembleMentionEntitySimilarity {
     return out;
   }
 
+  // TODO FIXME jhoffart mamir : scaling is not correct. rescale first, weight later. do not rescale prior and importance, ASSUME [0, 1] for both.
   public double calcSimilarity(Mention mention, Context context, Entity entity) throws Exception {
     if (settings.getPriorThreshold() >= 0.0) {
       return calcSwitchedSimilarity(mention, context, entity);
