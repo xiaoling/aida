@@ -54,7 +54,7 @@ Import it into a postgres database:
     
 where <DATABASE> is a database on a PostgreSQL server.
 
-A database dump on a more recent version of Wikipedia is also available: http://www.mpi-inf.mpg.de/yago-naga/aida/download/entity-repository/AIDA_entity_repository_2012-11-01v4.sql.bz2
+A database dump on a more recent version of Wikipedia is also available: http://www.mpi-inf.mpg.de/yago-naga/aida/download/entity-repository/AIDA_entity_repository_2012-11-01v5.sql.bz2
 
 ## Setting up AIDA
 
