@@ -8,7 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-import javatools.util.FileUtils;
+import mpi.tools.javatools.util.FileUtils;
 import mpi.aida.data.Context;
 import mpi.aida.data.Mentions;
 import mpi.aida.data.PreparedInput;
@@ -31,16 +31,11 @@ public abstract class CollectionReader implements Iterable<PreparedInput> {
   protected HashSet<Integer> allDocNumbers = null;
   
   protected List<PreparedInput> preparedInputs;
-
-  protected boolean includeNMEMentions = true;
   
-  
-  public void setIncludeNMEMentions(boolean includeNMEMentions) {
-    this.includeNMEMentions = includeNMEMentions;
-  }
+  protected CollectionReaderSettings settings;
 
   public static enum DataSource {
-    CONLL, WIKIPEDIA_YAGO2, AIDA, NONE 
+    CONLL, WIKIPEDIA_YAGO2, AIDA, NEWSSTREAMS, GIGAWORD5, NONE 
   }
 
   public static final String CONLL = "CONLL";
@@ -48,6 +43,10 @@ public abstract class CollectionReader implements Iterable<PreparedInput> {
   public static final String WIKIPEDIA_YAGO2 = "WIKIPEDIA_YAGO2";
   
   public static final String AIDA = "AIDA";
+  
+  public static final String GIGAWORD5 = "GIGAWORD5";
+  
+  public static final String NEWSSTREAMS = "NEWSSTREAMS";
   
   public static final String NONE = "NONE";
 
@@ -63,25 +62,28 @@ public abstract class CollectionReader implements Iterable<PreparedInput> {
 
   public static final String TEST = "TEST";
 
-  public CollectionReader(String collectionPath) {
-    this(collectionPath, 0, Integer.MAX_VALUE);
+  public CollectionReader(String collectionPath, CollectionReaderSettings settings) {
+    this(collectionPath, 0, Integer.MAX_VALUE, settings);
   }
 
-  public CollectionReader(String collectionPath, CollectionPart cp) {
+  public CollectionReader(String collectionPath, CollectionPart cp, CollectionReaderSettings settings) {
     int[] ft = getCollectionPartFromTo(cp);
     this.collectionPath = collectionPath;
     this.from = ft[0];
     this.to = ft[1];
+    this.settings = settings;
   }
 
-  public CollectionReader(String collectionPath, int from, int to) {
+  public CollectionReader(String collectionPath, int from, int to, CollectionReaderSettings settings) {
     this.collectionPath = collectionPath;
     this.from = from;
     this.to = to;
+    this.settings = settings;
   }
 
-  public CollectionReader(String collectionPath, String docIds) {
+  public CollectionReader(String collectionPath, String docIds,CollectionReaderSettings settings) {
     this.collectionPath = collectionPath;
+    this.settings = settings;
     if (docIds == null) {
       this.from = 0;
       this.to = Integer.MAX_VALUE;
@@ -147,5 +149,9 @@ public abstract class CollectionReader implements Iterable<PreparedInput> {
     }
 
     return sb.toString();
+  }
+
+  public CollectionReaderSettings getSettings() {
+    return settings;
   }
 }

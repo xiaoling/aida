@@ -2,10 +2,10 @@ package mpi.aida.util;
 
 import java.io.Reader;
 
-import basics.Normalize;
-import javatools.filehandlers.FileLines;
-import javatools.parsers.Char;
-import javatools.util.FileUtils;
+import mpi.tools.basics.Normalize;
+import mpi.tools.javatools.filehandlers.FileLines;
+import mpi.tools.javatools.parsers.Char;
+import mpi.tools.javatools.util.FileUtils;
 
 /**
  * Extracts all article ids from a Wikipedia pages-articles dump.

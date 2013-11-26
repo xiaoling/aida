@@ -23,6 +23,7 @@ import mpi.aida.graph.similarity.context.EntitiesContextSettings.EntitiesContext
 import mpi.aida.graph.similarity.exception.MissingSettingException;
 import mpi.aida.graph.similarity.importance.EntityImportance;
 import mpi.aida.graph.similarity.measure.MentionEntitySimilarityMeasure;
+import mpi.aida.util.CollectionUtils;
 import mpi.experiment.trace.Tracer;
 
 import org.apache.commons.lang.StringUtils;
@@ -87,6 +88,10 @@ public class SimilaritySettings implements Serializable {
    */
   private List<String[]> entityEntitySimilarities = new LinkedList<String[]>();
 
+  private List<String[]> mentionEntityKeyphraseSourceWeights = new LinkedList<String[]>();
+  
+  private List<String[]> entityEntityKeyphraseSourceWeights = new LinkedList<String[]>();
+  
   /** Weight of the prior probability. */ 
   private double priorWeight;
 
@@ -109,17 +114,7 @@ public class SimilaritySettings implements Serializable {
   private String lshDatabaseTable;
   
   private int nGramLength;
-  
-  private String mentionEntityKeyphraseSourceExclusion;
-  
-  private String entityEntityKeyphraseSourceExclusion;
-    
-  /**
-   * Maximum and minimum for each mentionEntitySimilarity in use. Needed
-   * for normalization.   
-   */
-  private MaxMinSettings mms;
-
+      
   private String identifier;
 
   private String fullPath;
@@ -160,14 +155,7 @@ public class SimilaritySettings implements Serializable {
         lshBandSize = Integer.parseInt(prop.getProperty("lshBandSize", "2"));
         lshBandCount = Integer.parseInt(prop.getProperty("lshBandCount", "100"));
         lshDatabaseTable = prop.getProperty("lshDatabaseTable", DataAccessSQL.ENTITY_LSH_SIGNATURES);
-        
-        if (prop.containsKey("entityEntityKeyphraseSourceExclusion")) {
-          entityEntityKeyphraseSourceExclusion = prop.getProperty("entityEntityKeyphraseSourceExclusion");
-        }
-        if (prop.containsKey("mentionEntityKeyphraseSourceExclusion")) {
-          mentionEntityKeyphraseSourceExclusion = prop.getProperty("mentionEntityKeyphraseSourceExclusion");
-        }
-        
+                
         String mentionEntitySimilarityString = prop.getProperty("mentionEntitySimilarities");
 
         if (mentionEntitySimilarityString != null) {
@@ -193,19 +181,21 @@ public class SimilaritySettings implements Serializable {
             entityEntitySimilarities.add(sim.split(":"));
           }
         }
-
-        fullPath = propertiesFile.getAbsolutePath();
-
-        // get max min
-        String path = fullPath.substring(0, fullPath.lastIndexOf(File.separator));
-        File maxMinFile = new File(path + "/maxmin.properties");
-
-        if (!maxMinFile.exists()) {
-          logger.error("No maxmin.properties file found, run StoreMaxMinFromArff to create a maxmin.properties file\n" + "in the same directory as the similaritysettings.properties");
-          return;
-        } else {
-          mms = new MaxMinSettings(maxMinFile.getAbsolutePath());
+        
+        if (prop.containsKey("entityEntityKeyphraseSourceWeights")) {
+          String entityEntityKeyphraseSourceWeightsString = prop.getProperty("entityEntityKeyphraseSourceWeights");
+          for (String src : entityEntityKeyphraseSourceWeightsString.split(" ")) {
+            entityEntityKeyphraseSourceWeights.add(src.split(":"));
+          }
         }
+        if (prop.containsKey("mentionEntityKeyphraseSourceWeights")) {
+          String mentionEntityKeyphraseSourceWeightsString = prop.getProperty("mentionEntityKeyphraseSourceWeights");
+          for (String src : mentionEntityKeyphraseSourceWeightsString.split(" ")) {
+            mentionEntityKeyphraseSourceWeights.add(src.split(":"));
+          }
+        }
+
+        fullPath = propertiesFile.getAbsolutePath();       
 
       } else {
         logger.error("Setings file specified but could not be loaded from '" + fullPath + "'");
@@ -223,16 +213,15 @@ public class SimilaritySettings implements Serializable {
    * @param priorWeight
    * @throws MissingSettingException 
    */
-  public SimilaritySettings(List<String[]> similarities, List<String[]> eeSimilarities, double priorWeight, Map<String, double[]> minMaxs) throws MissingSettingException {
-    this(similarities, eeSimilarities, null, priorWeight, minMaxs);
+  public SimilaritySettings(List<String[]> similarities, List<String[]> eeSimilarities, double priorWeight) throws MissingSettingException {
+    this(similarities, eeSimilarities, null, priorWeight);
   }
   
-  public SimilaritySettings(List<String[]> similarities, List<String[]> eeSimilarities, List<String[]> entityImportances, double priorWeight, Map<String, double[]> minMaxs) throws MissingSettingException {
+  public SimilaritySettings(List<String[]> similarities, List<String[]> eeSimilarities, List<String[]> entityImportances, double priorWeight) throws MissingSettingException {
     this.mentionEntitySimilarities = similarities;
     this.entityEntitySimilarities = eeSimilarities;
     this.entityImportancesSettings = entityImportances;
     this.priorWeight = priorWeight;
-    this.mms = new MaxMinSettings(minMaxs);
   }
 
 
@@ -247,8 +236,6 @@ public class SimilaritySettings implements Serializable {
   public double getPriorThreshold() {
     return priorThreshold;
   }
-
-  public static String maxminFilePath = null;
 
   public List<MentionEntitySimilarity> getMentionEntitySimilarities(
       Entities entities, String docId, Tracer tracer) throws Exception {
@@ -327,9 +314,7 @@ public class SimilaritySettings implements Serializable {
     } else if (eeIdentifier.equals("KeyphraseBasedEntityEntitySimilarity")) {
       return EntityEntitySimilarity.getKeyphraseBasedEntityEntitySimilarity(entities, settings, tracer);
     } else if (eeIdentifier.equals("KOREEntityEntitySimilarity")) {
-      return EntityEntitySimilarity.getKOREEntityEntitySimilarity(entities, settings, tracer);
-//    } else if (eeIdentifier.equals("KORELSHEntityEntitySimilarity")) {
-//      return EntityEntitySimilarity.getKORELSHEntityEntitySimilarity(entities, settings, tracer);
+      return EntityEntitySimilarity.getKOREEntityEntitySimilarity(entities, settings, tracer);    
     } else if (eeIdentifier.equals("TopKeyphraseBasedEntityEntitySimilarity")) {
       return EntityEntitySimilarity.getTopKeyphraseBasedEntityEntitySimilarity(entities, numberOfEntityKeyphrase, tracer);
     } else {
@@ -354,15 +339,16 @@ public class SimilaritySettings implements Serializable {
     if (isEntitiesContext) {
       settings.setEntitiesContextType(EntitiesContextType.ENTITY_ENTITY);
       settings.setShouldNormalizeWeights(normalizeCoherenceWeights);
-      settings.setEntityEntityKeyphraseSourceExclusion(entityEntityKeyphraseSourceExclusion);
+      settings.setEntityEntityKeyphraseSourceWeights(
+          CollectionUtils.getWeightStringsAsMap(entityEntityKeyphraseSourceWeights));
     } else {
       settings.setEntitiesContextType(EntitiesContextType.MENTION_ENTITY);
-      settings.setMentionEntityKeyphraseSourceExclusion(mentionEntityKeyphraseSourceExclusion);
+      settings.setMentionEntityKeyphraseSourceWeights(
+          CollectionUtils.getWeightStringsAsMap(mentionEntityKeyphraseSourceWeights));
     }
     return settings;
   }
-
-
+  
   public List<EntityEntitySimilarity> getEntityEntitySimilarities(Entities entities, Tracer tracer) throws Exception {
     List<EntityEntitySimilarity> eeSims = new LinkedList<EntityEntitySimilarity>();
 
@@ -385,26 +371,6 @@ public class SimilaritySettings implements Serializable {
 
   public String getIdentifier() {
     return identifier;
-  }
-
-  public double getMin(String featureName) {
-    if (featureName == null) {
-      logger.error("Getting min for null feature in SimilaritySettings (" + identifier + ")");
-    } else if (mms == null) {
-      logger.error("MaxMinSettings is null in SimilaritySettings (" + identifier + ")");
-    }
-
-    return mms.getMin(featureName);
-  }
-
-  public double getMax(String featureName) {
-    if (featureName == null) {
-      logger.error("Getting max for null feature in SimilaritySettings (" + identifier + ")");
-    } else if (mms == null) {
-      logger.error("MaxMinSettings is null in SimilaritySettings (" + identifier + ")");
-    }
-
-    return mms.getMax(featureName);
   }
   
   public double getEntityCohKeyphraseAlpha() {
@@ -526,23 +492,6 @@ public class SimilaritySettings implements Serializable {
     this.lshDatabaseTable = lshDatabaseTable;
   }
 
-  public String getMentionEntityKeyphraseSourceExclusion() {
-    return mentionEntityKeyphraseSourceExclusion;
-  }
-
-  public void setMentionEntityKeyphraseSourceExclusion(
-      String mentionEntityKeyphraseSourceExclusion) {
-    this.mentionEntityKeyphraseSourceExclusion = mentionEntityKeyphraseSourceExclusion;
-  }
-
-  public String getEntityEntityKeyphraseSourceExclusion() {
-    return entityEntityKeyphraseSourceExclusion;
-  }
-
-  public void setEntityEntityKeyphraseSourceExclusion(String entityEntityKeyphraseSourceExclusion) {
-    this.entityEntityKeyphraseSourceExclusion = entityEntityKeyphraseSourceExclusion;
-  }
-
   public double getMinimumEntityKeyphraseWeight() {
     return minimumEntityKeyphraseWeight;
   }
@@ -559,6 +508,18 @@ public class SimilaritySettings implements Serializable {
     this.maxEntityKeyphraseCount = maxEntityKeyphraseCount;
   }
   
+  
+  public void setMentionEntityKeyphraseSourceWeights(
+      List<String[]> mentionEntityKeyphraseSourceWeights) {
+    this.mentionEntityKeyphraseSourceWeights = mentionEntityKeyphraseSourceWeights;
+  }
+
+  
+  public void setEntityEntityKeyphraseSourceWeights(
+      List<String[]> entityEntityKeyphraseSourceWeights) {
+    this.entityEntityKeyphraseSourceWeights = entityEntityKeyphraseSourceWeights;
+  }
+
   public Map<String, Object> getAsMap() {
     Map<String, Object> s = new HashMap<String, Object>();
     if (mentionEntitySimilarities != null) {
@@ -601,11 +562,23 @@ public class SimilaritySettings implements Serializable {
     s.put("lshDatabaseTable", String.valueOf(lshDatabaseTable));
     s.put("nGramLength", String.valueOf(nGramLength));
     s.put("minimumEntityKeyphraseWeight", String.valueOf(minimumEntityKeyphraseWeight));
-    if (mentionEntityKeyphraseSourceExclusion != null) {
-      s.put("mentionEntityKeyphraseSourceExclusion", mentionEntityKeyphraseSourceExclusion);
+    if (mentionEntityKeyphraseSourceWeights != null) {
+      List<String> expanded = 
+          new ArrayList<String>(mentionEntityKeyphraseSourceWeights.size());
+      for (String[] sim : mentionEntityKeyphraseSourceWeights) {
+        expanded.add(StringUtils.join(sim, ":"));
+      }
+      String sims = StringUtils.join(expanded, " ");
+      s.put("mentionEntityKeyphraseSourceWeights", sims);
     }
-    if (entityEntityKeyphraseSourceExclusion != null) {
-      s.put("entityEntityKeyphraseSourceExclusion", entityEntityKeyphraseSourceExclusion);
+    if (entityEntityKeyphraseSourceWeights != null) {
+      List<String> expanded = 
+          new ArrayList<String>(entityEntityKeyphraseSourceWeights.size());
+      for (String[] sim : entityEntityKeyphraseSourceWeights) {
+        expanded.add(StringUtils.join(sim, ":"));
+      }
+      String sims = StringUtils.join(expanded, " ");
+      s.put("entityEntityKeyphraseSourceWeights", sims);
     }
     if (identifier != null) {
       s.put("identifier", identifier);

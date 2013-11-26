@@ -1,7 +1,12 @@
 package mpi.aida.graph.similarity;
 
+import gnu.trove.iterator.TIntDoubleIterator;
+import gnu.trove.map.hash.TIntDoubleHashMap;
+
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import mpi.aida.data.Context;
@@ -11,8 +16,8 @@ import mpi.aida.data.Mention;
 import mpi.aida.data.Mentions;
 import mpi.aida.graph.similarity.importance.EntityImportance;
 import mpi.aida.graph.similarity.util.SimilaritySettings;
-import mpi.experiment.trace.GraphTracer;
 import mpi.experiment.trace.Tracer;
+import mpi.experiment.trace.measures.EntityImportanceMeasureTracer;
 import mpi.experiment.trace.measures.PriorMeasureTracer;
 
 import org.slf4j.Logger;
@@ -25,14 +30,19 @@ import org.slf4j.LoggerFactory;
  * The prior probability of a mention-entity pair can also be used, and should
  * generally improve results.
  * 
- *
+ * TODO the constructor should not use the Entities object but build the union of
+ * all candidate entities from the Mentions (getCandidateEntities()) themselves.
  */
 public class EnsembleMentionEntitySimilarity {
   private static final Logger logger = 
       LoggerFactory.getLogger(EnsembleMentionEntitySimilarity.class);
   
   private List<MentionEntitySimilarity> mes;
-
+  private Map<String, double[]> mesMinMax;
+  Map<String, Map<Mention, TIntDoubleHashMap>> precomputedScores;  
+  /**
+   * EntityImportances need to be in [0, 1].
+   */
   private List<EntityImportance> eis;
 
   private PriorProbability pp = null;
@@ -43,11 +53,30 @@ public class EnsembleMentionEntitySimilarity {
 
   private Tracer tracer = null;
 
-  public EnsembleMentionEntitySimilarity(Mentions mentions, Entities entities, SimilaritySettings settings, Tracer tracer) throws Exception {
-    this(mentions, entities, settings, null, tracer);
+  /**
+   * Use this constructor if the context is the same for all mention-entity pairs.
+   * 
+   * @param mentions
+   * @param entities
+   * @param context
+   * @param settings
+   * @param docId
+   * @param tracer
+   * @throws Exception
+   */
+  public EnsembleMentionEntitySimilarity(Mentions mentions, Entities entities, Context context, SimilaritySettings settings, String docId, Tracer tracer) throws Exception {
+    Map<Mention, Context> sameContexts = new HashMap<Mention, Context>();
+    for (Mention m : mentions.getMentions()) {
+      sameContexts.put(m, context);
+    }
+    init(mentions, entities, sameContexts, settings, docId, tracer);
+  }
+  
+  public EnsembleMentionEntitySimilarity(Mentions mentions, Entities entities, Map<Mention, Context> mentionsContexts, SimilaritySettings settings, String docId, Tracer tracer) throws Exception {
+    init(mentions, entities, mentionsContexts, settings, docId, tracer);
   }
 
-  public EnsembleMentionEntitySimilarity(Mentions mentions, Entities entities, SimilaritySettings settings, String docId, Tracer tracer) throws Exception {
+  private void init(Mentions mentions, Entities entities, Map<Mention, Context> mentionsContexts, SimilaritySettings settings, String docId, Tracer tracer) throws Exception {
     this.settings = settings;
     double prior = settings.getPriorWeight();
     Set<String> mentionNames = new HashSet<String>();
@@ -85,6 +114,54 @@ public class EnsembleMentionEntitySimilarity {
     eis = settings.getEntityImportances(entities);
     this.docId = docId;
     this.tracer = tracer;
+    mesMinMax = precomputeMinMax(mentions, mentionsContexts);
+  }
+  
+  /**
+   * Updates precomputedScores. 
+   * 
+   * @param mentions
+   * @param mentionsContexts
+   * @return
+   * @throws Exception
+   */
+  private Map<String, double[]> precomputeMinMax(
+      Mentions mentions, Map<Mention, Context> mentionsContexts) throws Exception {
+    precomputedScores = new HashMap<String, Map<Mention,TIntDoubleHashMap>>();
+    //scores stay the same for the switched measures, only weights change
+    for (MentionEntitySimilarity s : mes) {
+      if(precomputedScores.containsKey(s.getIdentifier())) {
+        continue;
+      }
+      Map<Mention, TIntDoubleHashMap> measureScores =
+          new HashMap<Mention, TIntDoubleHashMap>();
+      precomputedScores.put(s.getIdentifier(), measureScores);
+      for (Mention m : mentions.getMentions()) {
+        Context context = mentionsContexts.get(m);
+        TIntDoubleHashMap mentionScores = new TIntDoubleHashMap();
+        measureScores.put(m, mentionScores);
+        for (Entity e : m.getCandidateEntities()) {
+          double sim = s.calcSimilarity(m, context, e, docId);
+          mentionScores.put(e.getId(), sim);
+        }
+      }
+    }
+    Map<String, double[]> measureMinMaxs =
+        new HashMap<String, double[]>();
+    for (String  s : precomputedScores.keySet()) {
+      double[] minMax = new double[] { Double.MAX_VALUE, 0.0 }; 
+      measureMinMaxs.put(s, minMax);
+      Map<Mention, TIntDoubleHashMap> measureScores = precomputedScores.get(s);
+      for (TIntDoubleHashMap mentionScores : measureScores.values()) {
+        for (TIntDoubleIterator itr = mentionScores.iterator(); itr.hasNext(); ) {
+          itr.advance();
+          double score = itr.value();
+          minMax[0] = Math.min(minMax[0], score);
+          minMax[1] = Math.max(minMax[1], score);
+        }
+      }
+    }
+    return measureMinMaxs;
   }
 
   public static double[] rescaleArray(double[] in) {
@@ -97,7 +174,6 @@ public class EnsembleMentionEntitySimilarity {
     }
 
     // rescale
-
     for (int i = 0; i < in.length; i++) {
       double norm = in[i] / total;
       out[i] = norm;
@@ -106,31 +182,34 @@ public class EnsembleMentionEntitySimilarity {
     return out;
   }
 
-  // TODO FIXME jhoffart mamir : scaling is not correct. rescale first, weight later. do not rescale prior and importance, ASSUME [0, 1] for both.
   public double calcSimilarity(Mention mention, Context context, Entity entity) throws Exception {
-    if (settings.getPriorThreshold() >= 0.0) {
-      return calcSwitchedSimilarity(mention, context, entity);
-    }
+    double bestPrior = pp.getBestPrior(mention.getMention());
+    boolean shouldSwitch = settings.getPriorThreshold() > 0.0; 
+    // If non-switch sim is computed, prior is always used. Otherwise determine based on the threshold and the distribution.
+    boolean shouldUsePrior = !shouldSwitch || shouldIncludePrior(bestPrior, settings.getPriorThreshold(), mention);
+    MentionEntitySimilarity[] mesToUse = 
+        getMentionEntitySimilarities(mes, shouldUsePrior, shouldSwitch);
 
     double weightedSimilarity = 0.0;
 
-    for (MentionEntitySimilarity s : mes) {
-      double singleSimilarity = s.calcSimilarity(mention, context, entity, docId) * s.getWeight();
-      singleSimilarity = rescale(singleSimilarity, settings.getMin(s.getIdentifier()), settings.getMax(s.getIdentifier()));
-
-      weightedSimilarity += singleSimilarity;
+    for (MentionEntitySimilarity s : mesToUse) {
+      double singleSimilarity = precomputedScores.get(s.getIdentifier()).get(mention).get(entity.getId());
+      double[] minMax = mesMinMax.get(s.getIdentifier());
+      singleSimilarity = rescale(singleSimilarity, minMax[0], minMax[1]);
+      weightedSimilarity += singleSimilarity * s.getWeight();
     }
 
     for (EntityImportance ei : eis) {
-      double singleImportance = ei.getImportance(entity) * ei.getWeight();
-      singleImportance = rescale(singleImportance, settings.getMin(ei.toString()), settings.getMax(ei.toString()));
-      weightedSimilarity += singleImportance;
+      double singleImportance = ei.getImportance(entity);
+      weightedSimilarity += singleImportance * ei.getWeight();
+      
+      EntityImportanceMeasureTracer mt = new EntityImportanceMeasureTracer(ei.getIdentifier(), ei.getWeight());
+      mt.setScore(singleImportance);
+      tracer.addMeasureForMentionEntity(mention, entity.getName(), mt);
     }
 
-    if (pp != null && settings.getPriorWeight() > 0.0) {
+    if (shouldUsePrior && pp != null && settings.getPriorWeight() > 0.0) {
       double weightedPrior = pp.getPriorProbability(mention.getMention(), entity);
-      weightedPrior = rescale(weightedPrior, settings.getMin("prior"), settings.getMax("prior"));
-
       weightedSimilarity += weightedPrior * pp.getWeight();
 
       PriorMeasureTracer mt = new PriorMeasureTracer("Prior", pp.getWeight());
@@ -143,64 +222,37 @@ public class EnsembleMentionEntitySimilarity {
     return weightedSimilarity;
   }
 
-
-/**
-   * First 4 similarity measures MUST BE the switched ones. All other ones are just used normally
-   * 
-   * @param mention
-   * @param context
-   * @param begin
-   * @param end
-   * @param entity
+  /**
+   * First half of similarity measures MUST BE the switched ones. 
+   * All other ones are just used normally
+  
+   * @param mentionEntitySimilarities
+   * @param shouldSwitch 
+   * @param shouldUsePrior 
+   * @param usePrior
    * @return
-   * @throws Exception
    */
-  private double calcSwitchedSimilarity(Mention mention, Context context, Entity entity) throws Exception {
-    double bestPrior = pp.getBestPrior(mention.getMention());
-
-    double weightedSimilarity = 0.0;
-
-    if (!shouldIncludePrior(bestPrior, mention)) {
-      for (int i = 0; i < mes.size() / 2; i++) {
-        MentionEntitySimilarity s = mes.get(i);
-        double singleSimilarity = s.calcSimilarity(mention, context, entity, docId);
-        singleSimilarity = rescale(singleSimilarity, settings.getMin(s.getIdentifier()), settings.getMax(s.getIdentifier()));
-
-        weightedSimilarity += singleSimilarity * s.getWeight();
+  private MentionEntitySimilarity[] getMentionEntitySimilarities(
+      List<MentionEntitySimilarity> mentionEntitySimilarities, boolean shouldUsePrior, boolean shouldSwitch) {
+    int start = 0;
+    int end = mentionEntitySimilarities.size();
+    if (shouldSwitch) {
+      start = 0;
+      end = mentionEntitySimilarities.size() / 2;
+      if (shouldUsePrior) {
+        start = mentionEntitySimilarities.size() / 2;
+        end = mentionEntitySimilarities.size();
       }
-    } else {
-      GraphTracer.gTracer.addMentionToLocalIncludingPrior(docId, mention.getMention(), mention.getStartToken());
-
-      for (int i = mes.size() / 2; i < mes.size(); i++) {
-        MentionEntitySimilarity s = mes.get(i);
-        double singleSimilarity = s.calcSimilarity(mention, context, entity, docId);
-        singleSimilarity = rescale(singleSimilarity, settings.getMin(s.getIdentifier()), settings.getMax(s.getIdentifier()));
-
-        weightedSimilarity += singleSimilarity * s.getWeight();
-      }
-
-      double prior = pp.getPriorProbability(mention.getMention(), entity);
-      double weightedPrior = rescale(prior, settings.getMin("prior"), settings.getMax("prior"));
-
-      weightedSimilarity += weightedPrior * pp.getWeight();
-
-      PriorMeasureTracer mt = new PriorMeasureTracer("Prior", pp.getWeight());
-      mt.setScore(weightedPrior);
-      tracer.addMeasureForMentionEntity(mention, entity.getName(), mt);
     }
-    
-//    if(settings.isUseHYENA()) {
-//    	double typeClassificationRescalingWeight = calcTypeClassficiationRescalingWeight(mention,tokens, entity);
-//    	weightedSimilarity *= typeClassificationRescalingWeight;
-//    }
-
-    tracer.setMentionEntityTotalSimilarityScore(mention, entity.getName(), weightedSimilarity);
-
-    return weightedSimilarity;
+    MentionEntitySimilarity[] mesToUse = new MentionEntitySimilarity[end - start];
+    for (int i = start; i < end; i++) {
+      mesToUse[i - start] = mentionEntitySimilarities.get(i);
+    }
+    return mesToUse;
   }
 
-  private boolean shouldIncludePrior(double bestPrior, Mention mention) {
-    boolean shouldUse = bestPrior > settings.getPriorThreshold();
+  private boolean shouldIncludePrior(double bestPrior, double priorThreshold, Mention mention) {    
+    boolean shouldUse = bestPrior > priorThreshold;
 
     if (!shouldUse) {
       return false;
@@ -227,7 +279,7 @@ public class EnsembleMentionEntitySimilarity {
     }
   }
 
-  private double rescale(double value, double min, double max) {
+  public static double rescale(double value, double min, double max) {
     if (value < min) {
       logger.debug("Wrong normalization, " + 
                     value + " not in [" + min + "," + max + "], " +

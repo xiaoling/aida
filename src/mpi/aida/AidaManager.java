@@ -1,5 +1,7 @@
 package mpi.aida;
 
+import gnu.trove.map.hash.TObjectIntHashMap;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -9,12 +11,14 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
@@ -22,27 +26,28 @@ import java.util.zip.GZIPOutputStream;
 
 import mpi.aida.access.DataAccess;
 import mpi.aida.config.AidaConfig;
+import mpi.aida.config.settings.PreparationSettings;
 import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
 import mpi.aida.data.Mention;
 import mpi.aida.data.Mentions;
 import mpi.aida.data.PreparedInput;
 import mpi.aida.data.ResultEntity;
+import mpi.aida.data.Type;
 import mpi.aida.preparation.AidaTokenizerManager;
 import mpi.aida.preparation.mentionrecognition.FilterMentions;
 import mpi.aida.preparation.mentionrecognition.FilterMentions.FilterType;
 import mpi.aida.util.ClassPathUtils;
 import mpi.aida.util.YagoUtil.Gender;
-import mpi.database.DBConnection;
-import mpi.database.DBSettings;
-import mpi.database.MultipleDBManager;
 import mpi.tokenizer.data.Tokenizer;
 import mpi.tokenizer.data.Tokens;
+import mpi.tools.basics.Normalize;
+import mpi.tools.database.DBConnection;
+import mpi.tools.database.DBSettings;
+import mpi.tools.database.MultipleDBManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import basics.Normalize;
 
 public class AidaManager {
 
@@ -50,6 +55,8 @@ public class AidaManager {
 
   // This is more couple to SQL than it should be. Works for now.
   public static final String DB_AIDA = "DatabaseAida";
+  
+  public static final String DB_YAGO2 = "DatabaseYago";
 
   public static final String DB_YAGO2_FULL = "DatabaseYago2Full";
 
@@ -57,19 +64,17 @@ public class AidaManager {
 
   public static final String DB_RMI_LOGGER = "DatabaseRMILogger";
 
-  public static final String DB_GND = "DatabaseGND";
-
   public static final String DB_HYENA = "DatabaseHYENA";
 
   private static String databaseAidaConfig = "database_aida.properties";
+  
+  private static String databaseYago2Config = "database_yago2.properties";
 
   private static String databaseYAGO2FullConfig = "database_yago2full.properties";
 
   private static String databaseYAGO2SPOTLXConfig = "database_yago2spotlx.properties";
 
   private static String databaseRMILoggerConfig = "databaseRmiLogger.properties";
-
-  private static String databaseGNDConfig = "database_gnd.properties";
 
   private static String databaseHYENAConfig = "database_hyena.properties";
 
@@ -85,10 +90,10 @@ public class AidaManager {
 
   static {
     dbIdToConfig.put(DB_AIDA, databaseAidaConfig);
+    dbIdToConfig.put(DB_YAGO2, databaseYago2Config);
     dbIdToConfig.put(DB_YAGO2_FULL, databaseYAGO2FullConfig);
     dbIdToConfig.put(DB_YAGO2_SPOTLX, databaseYAGO2SPOTLXConfig);
     dbIdToConfig.put(DB_RMI_LOGGER, databaseRMILoggerConfig);
-    dbIdToConfig.put(DB_GND, databaseGNDConfig);
     dbIdToConfig.put(DB_HYENA, databaseHYENAConfig);
   }
 
@@ -207,8 +212,8 @@ public class AidaManager {
     return wordExps;
   }
 
-  public static PreparedInput prepareInputData(String text, String docId, FilterType by) {
-    return AidaManager.getTasksInstance().createPrepareInputData(text, docId, by);
+  public static PreparedInput prepareInputData(String text, String docId, PreparationSettings settings) {
+    return AidaManager.getTasksInstance().createPrepareInputData(text, docId, settings);
   }
 
   /**
@@ -417,15 +422,18 @@ public class AidaManager {
    *         their prior probability
    * @throws SQLException
    */
-  public static Entities getEntitiesForMention(Mention mention, List<String> filteringTypes, double maxEntityRank) throws SQLException {
+  public static Entities getEntitiesForMention(Mention mention, Set<Type> filteringTypes, double maxEntityRank) throws SQLException {
     Entities entities = getEntitiesForMention(mention, maxEntityRank);
     Entities filteredEntities = new Entities();
-    for (Entity entity : entities) {
-      String entityName = entity.getName();
-      List<String> entityTypes = DataAccess.getTypes(entityName);
-      for (String filteringType : filteringTypes) {
-        if (entityTypes.contains(filteringType)) {
-          filteredEntities.add(entity);
+    Set<String> entityNames = entities.getUniqueNames();
+    Map<String, Set<Type>> entitiesTypes = DataAccess.getTypes(entityNames);
+    for (Entry<String, Set<Type>> entry : entitiesTypes.entrySet()) {
+      String entityName = entry.getKey();
+      Set<Type> entityTypes = entry.getValue();
+      for (Type t : entityTypes) {
+        if (filteringTypes.contains(t)) {
+          filteredEntities.add(new Entity(entityName, entities
+              .getId(entityName)));
           break;
         }
       }
@@ -455,7 +463,15 @@ public class AidaManager {
    */
   public static void fillInCandidateEntities(String docId, Mentions mentions, boolean includeNullEntityCandidates, boolean includeContextMentions,
       double maxEntityRank) throws SQLException {
-    List<String> filteringTypes = mentions.getEntitiesTypes();
+    //flag to be used when having entities from different knowledge bases
+    //and some of them are linked by a sameAs relation
+    //currently applicable only for the configuration GND_PLUS_YAGO
+    boolean removeDuplicateEntities = false;
+    if(DataAccess.getConfigurationName().equals("GND_PLUS_YAGO")) {
+      removeDuplicateEntities = true;
+    }
+    
+    Set<Type> filteringTypes = mentions.getEntitiesTypes();
     for (int i = 0; i < mentions.getMentions().size(); i++) {
       Mention m = mentions.getMentions().get(i);
       Entities mentionCandidateEntities;
@@ -542,16 +558,42 @@ public class AidaManager {
     initWordExpansion();
   }
 
-  private PreparedInput createPrepareInputData(String text, String docId, FilterType by) {
+  private PreparedInput createPrepareInputData(String text, String docId, PreparationSettings settings) {
     PreparedInput preparedInput = null;
-    if (by.equals(FilterType.Manual) || by.equals(FilterType.Hybrid)) {
-      preparedInput = filterMention.filter(text, docId, null, by);
+    if (settings.getMentionsFilter().equals(FilterType.Manual)) {
+      preparedInput = filterMention.filter(text, docId, settings.getMentionsFilter(), false, settings.getLanguage());
     } else {
-      Tokens tokens = tokenize(docId, text, Tokenizer.type.ner, false);
-      preparedInput = filterMention.filter(text, docId, tokens, by);
-      preparedInput.setTokens(tokens);
+      //TODO: (@Johanne, @mamir) why tokens outside and set the tokens after calling filter mentions
+      //commented out for now till further exploration
+      //Tokens tokens = tokenize(docId, text, Tokenizer.type.ner, false);
+      preparedInput = filterMention.filter(text, docId, settings.getMentionsFilter(), settings.isUseHybridMentionDetection(), settings.getLanguage());
+      //preparedInput.setTokens(tokens);
     }
+    
+    // Drop mentions below min occurrence count.
+    if (settings.getMinMentionOccurrenceCount() > 1) {
+      dropMentionsBelowOccurrenceCount(preparedInput, settings.getMinMentionOccurrenceCount());
+    }
+    
     return preparedInput;
+  }
+
+  public static void dropMentionsBelowOccurrenceCount(PreparedInput preparedInput,
+      int minMentionOccurrenceCount) {
+    Mentions docMentions = preparedInput.getMentions();
+    TObjectIntHashMap<String> mentionCounts = new TObjectIntHashMap<>();
+    for (Mention m : docMentions.getMentions()) {
+      mentionCounts.adjustOrPutValue(m.getMention(), 1, 1);
+    }
+    List<Mention> mentionsToRemove = new ArrayList<Mention>();
+    for (Mention m : docMentions.getMentions()) {
+      if (mentionCounts.get(m.getMention()) < minMentionOccurrenceCount) {
+        mentionsToRemove.add(m);
+      }
+    }
+    for (Mention m : mentionsToRemove) {
+      docMentions.remove(m);
+    }
   }
 
   private Tokens tokenize(String docId, String text, Tokenizer.type type, boolean lemmatize) {

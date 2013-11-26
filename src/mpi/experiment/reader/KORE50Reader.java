@@ -8,8 +8,8 @@ public class KORE50Reader  extends AidaFormatCollectionReader {
 
 	public final static String finalCollectionPath = "./data/experiment/KORE50";
 
-	public KORE50Reader(String collectionPath, String fileName) {
-		super(collectionPath, fileName);
+	public KORE50Reader(String collectionPath, String fileName, CollectionReaderSettings settings) {
+		super(collectionPath, fileName, settings);
 	}
 
 	public KORE50Reader() {

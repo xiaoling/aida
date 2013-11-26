@@ -2,10 +2,33 @@ package mpi.aida.util;
 
 import java.util.regex.Pattern;
 
+import mpi.tools.javatools.filehandlers.FileLines;
+
+import org.apache.commons.lang.StringEscapeUtils;
+
 public class WikipediaUtil {
 
   public static final int TOTAL_DOCS = 2628265;
 
+  /**
+   * Gets a full Wikipedia XML dump <page> content as input, extracts all
+   * the article text in the original MediaWiki markup.
+   * 
+   * @param fullPage
+   * @return
+   */
+  public static String readWikipediaArticleText(String fullPage) {
+    String rawContent = FileLines.readBetween(
+        fullPage, "<text xml:space=\"preserve\">", "</text>");
+    String content = "";
+    if (rawContent != null) {
+      content =
+        StringEscapeUtils.unescapeHtml(
+            WikipediaUtil.cleanWikipediaArticle(rawContent));
+    }
+    return content;
+  }
+  
   /**
    * Returns ONLY text (minus headlines, links, etc.) for a Wikipedia article source
    * 

@@ -2,11 +2,14 @@ package mpi.aida;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import mpi.aida.config.settings.PreparationSettings;
 import mpi.aida.data.PreparedInput;
+import mpi.aida.data.Type;
+import mpi.aida.util.RunningTimer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +51,7 @@ public class Preparator {
    */
   public PreparedInput prepare(
       String docId, String text, PreparationSettings settings) {
+    Integer timerId = RunningTimer.start("Preparator");
     Integer hash = text.hashCode();
     Integer processedHash = processedDocuments_.get(docId);
     if (processedHash != null) {
@@ -62,12 +66,14 @@ public class Preparator {
     } else {
       processedDocuments_.put(docId, hash);
     }
-    PreparedInput preparedInput = AidaManager.prepareInputData(text, docId, settings.getMentionsFilter());
-    String[] types = settings.getFilteringTypes();
+    PreparedInput preparedInput = AidaManager.prepareInputData(text, docId, settings);
+    Type[] types = settings.getFilteringTypes();
     if (types != null) {
-      List<String> filteringTypes = Arrays.asList(settings.getFilteringTypes());
+      logger_.info("Entity Types Filter Set!");
+      Set<Type> filteringTypes = new HashSet<Type>(Arrays.asList(settings.getFilteringTypes()));
       preparedInput.getMentions().setEntitiesTypes(filteringTypes);
     }
+    RunningTimer.end("Preparator", timerId);
     return preparedInput;
   }
 }

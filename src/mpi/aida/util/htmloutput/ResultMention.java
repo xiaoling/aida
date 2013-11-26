@@ -14,16 +14,14 @@ public class ResultMention {
 
   private double confidence;
   
-  private boolean isYagoEntity;
 
-  public ResultMention(String dataSetId, int offset, int length, String mention, String entity, double confidence, boolean isYagoEntity) {
+  public ResultMention(String dataSetId, int offset, int length, String mention, String entity, double confidence) {
     this.dataSetId = dataSetId;
     this.offset = offset;
     this.length = length;
     this.mention = mention;
     this.entity = entity;
     this.confidence = confidence;
-    this.isYagoEntity = isYagoEntity;
   }
 
   public int getOffset() {
@@ -53,9 +51,4 @@ public class ResultMention {
   public String toString() {
     return offset + "\t" + length + "\t" + mention + "\t" + entity;
   }
-
-  public boolean isYagoEntity() {
-    return isYagoEntity;
-  }
-
 }

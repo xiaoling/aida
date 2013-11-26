@@ -16,6 +16,7 @@ import mpi.aida.data.Entity;
 import mpi.aida.data.Mention;
 import mpi.aida.util.CollectionUtils;
 import mpi.experiment.measure.EvaluationMeasures;
+import mpi.experiment.trace.measures.KeytermEntityEntityMeasureTracer;
 import mpi.experiment.trace.measures.MeasureTracer;
 
 public class EntityEntityTracing { 
@@ -44,7 +45,7 @@ public class EntityEntityTracing {
   
   private DecimalFormat df = new DecimalFormat("0.0E0");
 
-  private Map<String, Map<String, Double>> entityContext = new HashMap<String, Map<String,Double>>();
+  private Map<String, Map<Integer, Double>> entityContext = new HashMap<String, Map<Integer,Double>>();
 
   
   public EntityEntityTracing() {
@@ -141,18 +142,19 @@ public class EntityEntityTracing {
     if (doDocumentEETracing) {
       sb.append("<a name='eesims'></a>");
       for (String entity : sortedEntities) {
-        if (doDocumentEETracing && !correctEntities.contains(entity)) {
-          continue;
-        }
+//        if (doDocumentEETracing && (!correctEntities.contains(entity) && !correctEntities.contains(Entity.EXISTS))) {
+//          continue;
+//        }
         sb.append("<a href='#" + entity + "'>" + entity + "</a>, ");
       }
     }
     
     sb.append("<table style='width=300px;padding:10px'>");
     for (String entity : sortedEntities) {
-      if (doDocumentEETracing && !correctEntities.contains(entity)) {
-        continue;
-      } else if (!doDocumentEETracing && !mainEntity.equals(entity)) {
+//      if (doDocumentEETracing && (!correctEntities.contains(entity) && !correctEntities.contains(Entity.EXISTS))) {
+//        continue;
+//      } else 
+      if (!doDocumentEETracing && !mainEntity.equals(entity)) {
         continue;
       }
       sb.append(getEntityDetailedOutput(entity));
@@ -173,8 +175,9 @@ public class EntityEntityTracing {
     sb.append("<table border='1'><tr><th width='30%'>Keyphrase (Weight)</th><th width='55%'>List of Matching Entities (Details)</th><th>Source</th></tr>"); 
     
     // get all keyphrases/words for 
-    Map<String, Double> sortedK = CollectionUtils.sortMapByValue(getEntityContext(main), true);
-    for (String k : sortedK.keySet()) {
+    Map<Integer, Double> sortedK = CollectionUtils.sortMapByValue(getEntityContext(main), true);
+    for (Integer kId : sortedK.keySet()) {
+      String k = KeytermEntityEntityMeasureTracer.id2word.get(kId);
       sb.append("<tr>");
       sb.append("<td>").append("<strong>").append(k).append("</strong>").append(" (").append(df.format(sortedK.get(k))).append(") </td>");
       
@@ -211,7 +214,7 @@ public class EntityEntityTracing {
     String e1 = mention2correctEntity.get(m1.getIdentifiedRepresentation());    
     String e2 = mention2correctEntity.get(m2.getIdentifiedRepresentation());
     
-    if (e1.equals(Entity.NO_MATCHING_ENTITY) || e2.equals(Entity.NO_MATCHING_ENTITY)) {
+    if (e1.equals(Entity.OOKBE) || e2.equals(Entity.OOKBE)) {
       return "<td>no_entity</td>";
     } else if (e1.equals(e2)) {
       return "<td>same_entity</td>";
@@ -495,11 +498,11 @@ public class EntityEntityTracing {
     this.correctRanking = correctRanking;
   }
 
-  public void addEntityContext(String entity, Map<String, Double> context) {
-    entityContext.put(entity, context);
+  public void addEntityContext(String entity, Map<Integer, Double> e1keyphrases) {
+    entityContext.put(entity, e1keyphrases);
   }
   
-  public Map<String, Double> getEntityContext(String entity) {
+  public Map<Integer, Double> getEntityContext(String entity) {
     return entityContext.get(entity);
   }
 }

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import mpi.aida.AidaManager;
 import mpi.aida.Preparator;
 import mpi.aida.config.AidaConfig;
 import mpi.aida.config.settings.DisambiguationSettings;
@@ -29,6 +30,8 @@ public class CocktailPartySizeConstrainedTest {
 	
 	public CocktailPartySizeConstrainedTest() {
 	    AidaConfig.set("dataAccess", "testing");
+	    AidaConfig.set(AidaConfig.CACHE_WORD_EXPANSIONS, "false");
+	    AidaManager.init();
 	}
 
 	@Test
@@ -47,15 +50,15 @@ public class CocktailPartySizeConstrainedTest {
 
 		PreparationSettings prepSettings = new StanfordHybridPreparationSettings();
 		
-	    Tracer tracer = new NullTracer();
-		
-	    Preparator p = new Preparator();
-	    PreparedInput input = p.prepare("test", text, prepSettings);
-	    
-	    DisambiguationSettings disSettings = new CocktailPartyDisambiguationSettings();
+    Tracer tracer = new NullTracer();
+	
+    Preparator p = new Preparator();
+    PreparedInput input = p.prepare("test", text, prepSettings);
+    
+    DisambiguationSettings disSettings = new CocktailPartyDisambiguationSettings();
 		
 		GraphGenerator gg = new GraphGenerator(input, disSettings, tracer);
-	    Graph gData = gg.run();
+	  Graph gData = gg.run();
 	    
 		//KeyphrasesContext kpContext = new KeyphrasesContext(entities);
 		
@@ -67,17 +70,17 @@ public class CocktailPartySizeConstrainedTest {
 	    String mapped = mappings.get("Page").getEntity();
 	    double score = mappings.get("Page").getDisambiguationScore();
 	    assertEquals("Jimmy_Page", mapped);
-	    assertEquals(0.002198, score, 0.00001);
+	    assertEquals(0.6, score, 0.00001);
 
 	    mapped = mappings.get("Kashmir").getEntity();
 	    score = mappings.get("Kashmir").getDisambiguationScore();
 	    assertEquals("Kashmir_(song)", mapped);
-	    assertEquals(0.00029, score, 0.00001);
+	    assertEquals(0.07995, score, 0.00001);
 
 	    mapped = mappings.get("Knebworth").getEntity();
 	    score = mappings.get("Knebworth").getDisambiguationScore();
 	    assertEquals("Knebworth_Festival", mapped);
-	    assertEquals(0.6, score, 0.00001);
+	    assertEquals(0.357689, score, 0.00001);
 
 	    mapped = mappings.get("Les Paul").getEntity();
 	    score = mappings.get("Les Paul").getDisambiguationScore();
@@ -91,7 +94,6 @@ public class CocktailPartySizeConstrainedTest {
 
 		for(Entry<ResultMention, List<ResultEntity>> entry: results.entrySet()) {
 			repack.put(entry.getKey().getMention(), entry.getValue().get(0));
-			System.out.println(entry.getValue().get(0));
 		}
 		return repack;
 	}

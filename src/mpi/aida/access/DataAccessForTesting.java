@@ -20,6 +20,7 @@ import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
 import mpi.aida.data.EntityMetaData;
 import mpi.aida.data.Keyphrases;
+import mpi.aida.data.Type;
 import mpi.aida.graph.similarity.measure.WeightComputation;
 import mpi.aida.util.YagoUtil.Gender;
 
@@ -108,7 +109,7 @@ public class DataAccessForTesting implements DataAccessInterface {
       
   @Override
   public void getEntityKeyphraseTokens(
-      Entities entities, String keyphraseSourceExclusion,
+      Entities entities,
       TIntObjectHashMap<int[]> entityKeyphrases,
       TIntObjectHashMap<int[]> keyphraseTokens) {
     for (String[] eKps : allEntityKeyphrases) {
@@ -220,31 +221,26 @@ public class DataAccessForTesting implements DataAccessInterface {
   }
 
   @Override
-  public Entities getEntitiesForMention(String mention, double maxEntityRank) {
-    if (mention.equals("Page")) {
-      Entities pageEntities = new Entities();
-      Entity e1 = new Entity("Jimmy_Page", DataAccess.getIdForYagoEntityId("Jimmy_Page"));
-      if (getEntityRank(e1) <= maxEntityRank) { pageEntities.add(e1); }
-      Entity e2 = new Entity("Larry_Page", DataAccess.getIdForYagoEntityId("Larry_Page"));
-      if (getEntityRank(e2) <= maxEntityRank) { pageEntities.add(e2); }
-      return pageEntities;
-    } else if (mention.equals("Kashmir")) {
-      Entities kashmirEntities = new Entities();
-      Entity e1 = new Entity("Kashmir", DataAccess.getIdForYagoEntityId("Kashmir"));
-      if (getEntityRank(e1) <= maxEntityRank) { kashmirEntities.add(e1); }
-      Entity e2 = new Entity("Kashmir_(song)", DataAccess.getIdForYagoEntityId("Kashmir_(song)"));
-      if (getEntityRank(e2) <= maxEntityRank) { kashmirEntities.add(e2); }
-      return kashmirEntities;
-    } else if (mention.equals("Knebworth")) {
-      Entities knebworthEntities = new Entities();
-      Entity e1 = new Entity("Knebworth_Festival", DataAccess.getIdForYagoEntityId("Knebworth_Festival"));
-      if (getEntityRank(e1) <= maxEntityRank) { knebworthEntities.add(e1); } 
-      return knebworthEntities;
-    } else if (mention.equals("Les Paul")) {
-      return new Entities();
-    } else {
-      throw new IllegalArgumentException(mention + " is not part of Testing");
-    }
+  public Map<String, Entities> getEntitiesForMentions(Collection<String> mentions, double maxEntityRank) {
+    Map<String, Entities> candidates = new HashMap<String, Entities>();
+    Entities pageEntities = new Entities();
+    Entity e1 = new Entity("Jimmy_Page", DataAccess.getIdForYagoEntityId("Jimmy_Page"));
+    if (getEntityRank(e1) <= maxEntityRank) { pageEntities.add(e1); }
+    Entity e2 = new Entity("Larry_Page", DataAccess.getIdForYagoEntityId("Larry_Page"));
+    if (getEntityRank(e2) <= maxEntityRank) { pageEntities.add(e2); }
+    candidates.put("Page", pageEntities);
+    Entities kashmirEntities = new Entities();
+    e1 = new Entity("Kashmir", DataAccess.getIdForYagoEntityId("Kashmir"));
+    if (getEntityRank(e1) <= maxEntityRank) { kashmirEntities.add(e1); }
+    e2 = new Entity("Kashmir_(song)", DataAccess.getIdForYagoEntityId("Kashmir_(song)"));
+    if (getEntityRank(e2) <= maxEntityRank) { kashmirEntities.add(e2); }
+    candidates.put("Kashmir", kashmirEntities);
+    Entities knebworthEntities = new Entities();
+    e1 = new Entity("Knebworth_Festival", DataAccess.getIdForYagoEntityId("Knebworth_Festival"));
+    if (getEntityRank(e1) <= maxEntityRank) { knebworthEntities.add(e1); } 
+    candidates.put("Knebworth", knebworthEntities);
+    candidates.put("Les Paul", new Entities());
+    return candidates;
   }
   
   public double getEntityRank(Entity e) {
@@ -266,13 +262,13 @@ public class DataAccessForTesting implements DataAccessInterface {
   
   @Override
   public Keyphrases getEntityKeyphrases(Entities entities,
-      String keyphraseSourceExclusion, double minKeyphraseWeight,
+      Map<String, Double> keyphraseSourceWeights, double minKeyphraseWeight,
       int maxEntityKeyphraseCount) {
     Keyphrases keyphrases = new Keyphrases();
     TIntObjectHashMap<int[]> eKps = new TIntObjectHashMap<int[]>();
     TIntObjectHashMap<int[]> kpTokens = new TIntObjectHashMap<int[]>();
     getEntityKeyphraseTokens(
-        entities, keyphraseSourceExclusion, eKps, kpTokens);
+        entities, eKps, kpTokens);
     keyphrases.setEntityKeyphrases(eKps);
     keyphrases.setKeyphraseTokens(kpTokens);
     
@@ -323,8 +319,8 @@ public class DataAccessForTesting implements DataAccessInterface {
 
   @Override
   public Keyphrases getEntityKeyphrases(Entities entities,
-      String keyphraseSourceExclusion) {
-    return getEntityKeyphrases(entities, keyphraseSourceExclusion, 0.0, 0);
+      Map<String, Double> keyphraseSourceWeights) {
+    return getEntityKeyphrases(entities, keyphraseSourceWeights, 0.0, 0);
   }
 
   @Override
@@ -411,13 +407,13 @@ public class DataAccessForTesting implements DataAccessInterface {
   }
 
   @Override
-  public Map<String, List<String>> getTypes(Set<String> entities) {
+  public Map<String, Set<Type>> getTypes(Set<String> entities) {
     System.err.println("Accessed " + getMethodName());
     return null;
   }
 
   @Override
-  public List<String> getTypes(String Entity) {
+  public Set<Type> getTypes(String Entity) {
     System.err.println("Accessed " + getMethodName());
     return null;
   }
@@ -655,7 +651,7 @@ public class DataAccessForTesting implements DataAccessInterface {
 
 
   @Override
-  public TIntObjectHashMap<String> getTypeNamesForIds(int[] ids) {
+  public TIntObjectHashMap<Type> getTypeNamesForIds(int[] ids) {
     // TODO Auto-generated method stub
     return null;
   }
@@ -742,5 +738,31 @@ public class DataAccessForTesting implements DataAccessInterface {
   public double getEntityImportance(int entityId) {
     // TODO Auto-generated method stub
     return 0;
+  }
+
+
+  @Override
+  public Map<String, Double> getKeyphraseSourceWeights() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+
+  @Override
+  public double getKeyphraseSourceWeights(String source) {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
+  @Override
+  public Map<String, List<String>> getAllEntitiesMetaData(String startingWith) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+
+  @Override
+  public String getConfigurationName() {
+    return "YAGO";
   }  
 }

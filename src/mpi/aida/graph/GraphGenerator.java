@@ -70,7 +70,7 @@ public class GraphGenerator {
     Entities allEntities = new Entities();
 
     if (settings.isIncludeNullAsEntityCandidate()) {
-      allEntities.setIncludesNmeEntities(true);
+      allEntities.setIncludesOokbeEntities(true);
     }
 
     // prepare tracing
@@ -113,7 +113,7 @@ public class GraphGenerator {
 
       EnsembleMentionEntitySimilarity combSimMeasure = 
           new EnsembleMentionEntitySimilarity(
-              content.getMentions(), allEntities, 
+              content.getMentions(), allEntities, content.getContext(),
               settings.getCoherenceSimilaritySetting(), content.getDocId(), 
               tracer);
 
@@ -149,7 +149,7 @@ public class GraphGenerator {
 
     EnsembleMentionEntitySimilarity mentionEntitySimilarity = 
         new EnsembleMentionEntitySimilarity(
-            content.getMentions(), allEntities, 
+            content.getMentions(), allEntities, content.getContext(),
             settings.getSimilaritySettings(), content.getDocId(), tracer);
     logger.info("Computing the mention-entity similarities...");
 
@@ -157,7 +157,7 @@ public class GraphGenerator {
     // entities
     allEntities = new Entities();
     if (settings.isIncludeNullAsEntityCandidate()) {
-      allEntities.setIncludesNmeEntities(true);
+      allEntities.setIncludesOokbeEntities(true);
     }
     for (int i = 0; i < mentions.getMentions().size(); i++) {
       Mention currentMention = mentions.getMentions().get(i);

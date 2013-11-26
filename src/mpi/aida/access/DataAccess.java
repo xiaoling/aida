@@ -17,6 +17,7 @@ import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
 import mpi.aida.data.EntityMetaData;
 import mpi.aida.data.Keyphrases;
+import mpi.aida.data.Type;
 import mpi.aida.util.YagoUtil.Gender;
 
 import org.slf4j.Logger;
@@ -74,7 +75,14 @@ public class DataAccess {
   }
 
   public static Entities getEntitiesForMention(String mention, double maxEntityRank) {
-    return DataAccess.getInstance().getEntitiesForMention(mention, maxEntityRank);
+    List<String> mentionAsList = new ArrayList<String>(1);
+    mentionAsList.add(mention);
+    Map<String, Entities> candidates = getEntitiesForMentions(mentionAsList, maxEntityRank);
+    return candidates.get(mention);
+  }
+  
+  public static Map<String, Entities> getEntitiesForMentions(Collection<String> mention, double maxEntityRank) {
+    return DataAccess.getInstance().getEntitiesForMentions(mention, maxEntityRank);
   }
   
   public static Keyphrases getEntityKeyphrases(Entities entities) {
@@ -82,14 +90,18 @@ public class DataAccess {
   }
   
   public static Keyphrases getEntityKeyphrases(
-      Entities entities, String keyphrasesSourceExclusion) {
+      Entities entities, Map<String, Double> keyphraseSourceWeights) {
     return DataAccess.getInstance().
-        getEntityKeyphrases(entities, keyphrasesSourceExclusion);
+        getEntityKeyphrases(entities, keyphraseSourceWeights);
   }
   
   /**
    * Retrieves all the Keyphrases for the given entities. Does not return
-   * keyphrases from keyphraseSourceExclusion.
+   * keyphrases when the source has a weight of 0.0.
+   * 
+   * If keyphraseSourceWeights is not null, the return object will also
+   * contain all keyphrase sources. This will increase the data transfer,
+   * so use wisely.
    * 
    * If minKeyphraseWeight > 0.0, keyphrases with a weight lower than
    * minKeyphraseWeight will not be returned.
@@ -98,16 +110,16 @@ public class DataAccess {
    * be returned for each entity.
    * 
    * @param entities
-   * @param keyphrasesSourceExclusion
+   * @param keyphraseSourceWeights
    * @param minKeyphraseWeight
    * @param maxEntityKeyphraseCount
    * @return
    */
   public static Keyphrases getEntityKeyphrases(
-      Entities entities, String keyphrasesSourceExclusion, 
+      Entities entities, Map<String, Double> keyphraseSourceWeights, 
       double minKeyphraseWeight, int maxEntityKeyphraseCount) {
     return DataAccess.getInstance().
-        getEntityKeyphrases(entities, keyphrasesSourceExclusion, 
+        getEntityKeyphrases(entities, keyphraseSourceWeights, 
             minKeyphraseWeight, maxEntityKeyphraseCount);
   }
 
@@ -115,15 +127,8 @@ public class DataAccess {
       Entities entities,
       TIntObjectHashMap<int[]> entityKeyphrases,
       TIntObjectHashMap<int[]> keyphraseTokens) {
-    getEntityKeyphraseTokens(entities, null, entityKeyphrases, keyphraseTokens);
-  }
-  
-  public static void getEntityKeyphraseTokens(
-      Entities entities, String keyphraseSourceExclusion,
-      TIntObjectHashMap<int[]> entityKeyphrases,
-      TIntObjectHashMap<int[]> kpTokens) {
     DataAccess.getInstance().getEntityKeyphraseTokens(
-        entities, keyphraseSourceExclusion, entityKeyphrases, kpTokens);
+        entities, entityKeyphrases, keyphraseTokens);
   }
 
   public static int[] getInlinkNeighbors(Entity e) {
@@ -165,13 +170,13 @@ public class DataAccess {
    }
    
    
-  public static String getTypeNameForId(int typeId) {
+  public static Type getTypeNameForId(int typeId) {
     int[] types = new int[1];
     types[0] = typeId;
     return getTypeNamesForIds(types).get(typeId);
   }
   
-  public static TIntObjectHashMap<String> getTypeNamesForIds(int[] ids) {
+  public static TIntObjectHashMap<Type> getTypeNamesForIds(int[] ids) {
     return DataAccess.getInstance().getTypeNamesForIds(ids);
   }
   
@@ -229,12 +234,16 @@ public class DataAccess {
     return getInstance().getGenderForEntities(entities);
   }
 
-  public static Map<String, List<String>> getTypes(Set<String> entities) {
+  public static Map<String, Set<Type>> getTypes(Set<String> entities) {
     return getInstance().getTypes(entities);
   }
 
-  public static List<String> getTypes(String Entity) {
-    return getInstance().getTypes(Entity);
+  public static Set<Type> getTypes(String entity) {
+    return getInstance().getTypes(entity);
+  }
+
+  public static Map<String, List<String>> getAllEntitiesMetaData(String startingWith){
+    return getInstance().getAllEntitiesMetaData(startingWith);
   }
 
   public static Map<String, EntityMetaData> getEntitiesMetaData(Set<String> entities) {
@@ -358,5 +367,9 @@ public class DataAccess {
 
   public static int getWordExpansion(int wordId) {
     return getInstance().getWordExpansion(wordId);
+  }
+  
+  public static String getConfigurationName() {
+    return getInstance().getConfigurationName();
   }  
 }

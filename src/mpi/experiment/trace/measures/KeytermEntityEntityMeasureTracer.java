@@ -1,9 +1,14 @@
 package mpi.experiment.trace.measures;
 
+import gnu.trove.iterator.TObjectIntIterator;
+import gnu.trove.map.hash.TIntObjectHashMap;
+import gnu.trove.map.hash.TObjectIntHashMap;
+
 import java.text.DecimalFormat;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import mpi.aida.access.DataAccess;
 import mpi.aida.util.CollectionUtils;
 
 import org.slf4j.Logger;
@@ -14,20 +19,49 @@ public class KeytermEntityEntityMeasureTracer extends MeasureTracer {
   private static final Logger logger = 
       LoggerFactory.getLogger(KeytermEntityEntityMeasureTracer.class);
   
-  Map<String, Double> terms;
-  Map<String, TermTracer> matchedTerms;
+  public static TIntObjectHashMap<String> id2word = 
+    new TIntObjectHashMap<String>();
   
-  private DecimalFormat sFormatter = new DecimalFormat("0.0E0");
+  Map<Integer, Double> terms;
+  Map<Integer, TermTracer> matchedTerms;
+  TIntObjectHashMap<int[]> keyphraseTokens;
+  
+  private DecimalFormat sFormatter = new DecimalFormat("0.00E0");
   private DecimalFormat percentFormatter = new DecimalFormat("#0.0");
 
   public static final String UI_PREFIX = "KWCSEEMT";
   public static int countForUI = 0;
   
-  public KeytermEntityEntityMeasureTracer(String name, double weight, Map<String, Double> terms, Map<String, TermTracer> matchedTerms) {
+  public KeytermEntityEntityMeasureTracer(String name, double weight, Map<Integer, Double> keyphraseWeights, Map<Integer, TermTracer> matches) {
+    this(name, weight, keyphraseWeights, matches, null);
+  }
+  
+  // keyphraseTokens must be present if the tracer should support inner matches!
+  public KeytermEntityEntityMeasureTracer(String name, double weight, Map<Integer, Double> keyphraseWeights, Map<Integer, TermTracer> matches, TIntObjectHashMap<int[]> keyphraseTokens) {
     super(name, weight);
     
-    this.terms = terms;
-    this.matchedTerms = matchedTerms;
+    this.terms = keyphraseWeights;
+    this.matchedTerms = matches;
+    this.keyphraseTokens = keyphraseTokens;
+        
+    synchronized (id2word) {
+      if (id2word.size() == 0) {
+        logger.debug("Reading all word ids for tracing.");
+        id2word = getAllWordIds();
+        logger.debug("Reading all word ids for tracing done.");
+      }
+    }
+  }
+  
+  public static TIntObjectHashMap<String> getAllWordIds() {
+    TObjectIntHashMap<String> wordIds = DataAccess.getAllWordIds();
+    TIntObjectHashMap<String> idWords = 
+        new TIntObjectHashMap<String>(wordIds.size());
+    for (TObjectIntIterator<String> itr = wordIds.iterator(); itr.hasNext(); ) {
+      itr.advance();
+      idWords.put(itr.value(), itr.key());
+    }    
+    return idWords;
   }
 
   @Override
@@ -38,7 +72,7 @@ public class KeytermEntityEntityMeasureTracer extends MeasureTracer {
     
 //    sb.append("&nbsp;&nbsp;&nbsp;&nbsp;<em>eesim: " + weight + "</em><br />");
     
-    Map<String, TermTracer> sortedMatches = CollectionUtils.sortMapByValue(matchedTerms, true);
+    Map<Integer, TermTracer> sortedMatches = CollectionUtils.sortMapByValue(matchedTerms, true);
     
     double totalWeight = 0.0;
     for (TermTracer tt : matchedTerms.values()) {
@@ -47,8 +81,12 @@ public class KeytermEntityEntityMeasureTracer extends MeasureTracer {
     
     double currentWeight = 0.0;
     
-    for (Entry<String, TermTracer> k : sortedMatches.entrySet()) {  
-      String term = k.getKey();      
+    for (Entry<Integer, TermTracer> k : sortedMatches.entrySet()) {  
+      int termId = k.getKey();
+      String term = id2word.get(termId);
+      if (term == null) {
+        term = "COULD_NOT_GET_WORD";
+      }
       keywordCount++;
                   
       if(keywordCount == 1) {
@@ -60,20 +98,23 @@ public class KeytermEntityEntityMeasureTracer extends MeasureTracer {
         sb.append("<div id='div" + UI_PREFIX + countForUI + "' style='display:none'>");
       }
       
-      for (String inner : term.split(" ")) {
-        if ((k.getValue().getInnerMatches() != null) && k.getValue().getInnerMatches().containsKey(inner)) {
-          sb.append("<span style='background-color:#FFAA70;'>").append(inner).append(" (").append(sFormatter.format(k.getValue().getInnerMatches().get(inner))).append(")</span> ");
+      for (int innerId : keyphraseTokens.get(termId)) {
+        String inner = id2word.get(innerId);
+        if ((k.getValue().getInnerMatches() != null) && k.getValue().getInnerMatches().containsKey(innerId)) {
+          sb.append("<span style='background-color:#FFAA70;'>").append(inner).append(" (").append(sFormatter.format(k.getValue().getInnerMatches().get(innerId))).append(")</span> ");
         } else {
           sb.append(inner).append(" ");
         }
       }
-      sb.append(": ").append(sFormatter.format(terms.get(term)));
+      double termWeight = terms.get(termId);
+      sb.append(": ").append(sFormatter.format(termWeight));
 //      part = "<span style='background-color: #ADFF2F;'>" +
       try {
-        if (terms.containsKey(term)) {
-          double matchWeight = matchedTerms.get(term).getTermWeight();
-          currentWeight += matchWeight;      
-          sb.append(" (contrib. " + sFormatter.format(matchWeight) + ")");
+        if (terms.containsKey(termId)) {
+          double matchWeight = matchedTerms.get(termId).getTermWeight();
+          currentWeight += matchWeight;
+          double contribPercent = matchWeight / termWeight;
+          sb.append(" (" + percentFormatter.format(contribPercent) + " contrib, " + sFormatter.format(matchWeight) + ")");
         }
       } catch (IllegalArgumentException e) {
         logger.warn("Could not format weight for '" + 
@@ -97,7 +138,7 @@ public class KeytermEntityEntityMeasureTracer extends MeasureTracer {
     return sb.toString();
   }
 
-  public Map<String, TermTracer> getMatchedKeywords() {
+  public Map<Integer, TermTracer> getMatchedKeywords() {
     return matchedTerms;
   }
 }

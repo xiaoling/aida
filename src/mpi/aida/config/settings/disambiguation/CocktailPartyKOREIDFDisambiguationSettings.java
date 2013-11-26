@@ -1,9 +1,7 @@
 package mpi.aida.config.settings.disambiguation;
 
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import mpi.aida.access.DataAccess;
 import mpi.aida.config.settings.DisambiguationSettings;
@@ -33,23 +31,21 @@ public class CocktailPartyKOREIDFDisambiguationSettings extends DisambiguationSe
     setEntitiesPerMentionConstraint(5);
     setUseCoherenceRobustnessTest(false);
     
-    Map<String, double[]> minMaxs = new HashMap<String, double[]>();
-    minMaxs.put("UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext", new double[] { 0.0, 63207.231647131});
-    minMaxs.put("AidaEntityImportance", new double[] { 0.0, 1.0});
-
     List<String[]> simConfigs = new LinkedList<String[]>();
     simConfigs.add(new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "0.5" });  
     List<String[]> cohConfigs = new LinkedList<String[]>();
     cohConfigs.add(new String[] { "KOREEntityEntitySimilarity", "1.0" });
     List<String[]> eisConfigs = new LinkedList<String[]>();
-    eisConfigs.add(new String[] { "AidaEntityImportance:0.5" });
+    eisConfigs.add(new String[] { "AidaEntityImportance", "0.5" });
         
-    SimilaritySettings settings = new SimilaritySettings(simConfigs, cohConfigs, eisConfigs, 0.0, minMaxs);
+    SimilaritySettings settings = new SimilaritySettings(simConfigs, cohConfigs, eisConfigs, 0.0);
     settings.setIdentifier("idf-sims");
     settings.setEntityCohKeyphraseAlpha(0.0);
     settings.setEntityCohKeywordAlpha(0.0);
     settings.setShouldNormalizeCoherenceWeights(true);
-    settings.setEntityEntityKeyphraseSourceExclusion(DataAccess.KPSOURCE_INLINKTITLE);
+    List<String[]> sourceWeightConfigs = new LinkedList<String[]>();
+    sourceWeightConfigs.add(new String[] { DataAccess.KPSOURCE_INLINKTITLE, "0.0" });
+    settings.setEntityEntityKeyphraseSourceWeights(sourceWeightConfigs);
     setSimilaritySettings(settings);
   }
 }

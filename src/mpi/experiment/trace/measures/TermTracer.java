@@ -7,7 +7,7 @@ public class TermTracer implements Comparable<TermTracer> {
 
   double termWeight;
 
-  Map<String, Double> innerMatches = new HashMap<String, Double>();
+  Map<Integer, Double> innerMatches = new HashMap<Integer, Double>();
 
   public double getTermWeight() {
     return termWeight;
@@ -17,11 +17,11 @@ public class TermTracer implements Comparable<TermTracer> {
     this.termWeight = termWeight;
   }
 
-  public Map<String, Double> getInnerMatches() {
+  public Map<Integer, Double> getInnerMatches() {
     return innerMatches;
   }
 
-  public void addInnerMatch(String inner, Double weight) {
+  public void addInnerMatch(Integer inner, Double weight) {
     innerMatches.put(inner, weight);
   }
 

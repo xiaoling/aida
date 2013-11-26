@@ -28,7 +28,7 @@ public class KeyphraseCosineSimilarityMeasure extends EntityEntitySimilarityMeas
   public double calcSimilarity(Entity a, Entity b, EntitiesContext entitiesContext) {
     kpc = (WeightedKeyphrasesContext) entitiesContext;
     
-    Map<String, Double> matches = new HashMap<String, Double>();
+    Map<Integer, Double> matches = new HashMap<Integer, Double>();
     double dotprod = 0.0;
 
     int[] e1kps = kpc.getEntityKeyphraseIds(a);
@@ -47,7 +47,7 @@ public class KeyphraseCosineSimilarityMeasure extends EntityEntitySimilarityMeas
         double tmp = v1 * v2;
         dotprod += tmp;
         
-        matches.put(kpc.getKeyphraseForId(kp), tmp);
+        matches.put(kp, tmp);
       }
     }
 
@@ -62,36 +62,36 @@ public class KeyphraseCosineSimilarityMeasure extends EntityEntitySimilarityMeas
     }
     
     if (!(tracer.eeTracing() instanceof NullEntityEntityTracing)) {
-      Map<String, Double> e1keyphrases = new HashMap<String, Double>();     
+      Map<Integer, Double> e1keyphrases = new HashMap<Integer, Double>();     
       for (int kp : e1kps) {
         if (kpc.getCombinedKeyphraseMiIdfWeight(a, kp) > 0.0) {
-          e1keyphrases.put(kpc.getKeyphraseForId(kp), kpc.getCombinedKeyphraseMiIdfWeight(a, kp));
+          e1keyphrases.put(kp, kpc.getCombinedKeyphraseMiIdfWeight(a, kp));
         }
       }     
       e1keyphrases = CollectionUtils.sortMapByValue(e1keyphrases, true);
-      Map<String, Double> e1top = new LinkedHashMap<String, Double>();           
-      for (Entry<String, Double> e : e1keyphrases.entrySet()) {       
+      Map<Integer, Double> e1top = new LinkedHashMap<Integer, Double>();           
+      for (Entry<Integer, Double> e : e1keyphrases.entrySet()) {       
         e1top.put(e.getKey(), e.getValue());
       }      
       e1keyphrases = e1top;
       
       
-      Map<String, Double> e2keyphrases = new HashMap<String, Double>();
+      Map<Integer, Double> e2keyphrases = new HashMap<Integer, Double>();
       for (int kp : e2kps) {
         if (kpc.getCombinedKeyphraseMiIdfWeight(b, kp) > 0.0) {
-          e2keyphrases.put(kpc.getKeyphraseForId(kp), kpc.getCombinedKeyphraseMiIdfWeight(b, kp));
+          e2keyphrases.put(kp, kpc.getCombinedKeyphraseMiIdfWeight(b, kp));
         }
       }  
       e2keyphrases = CollectionUtils.sortMapByValue(e2keyphrases, true);
-      Map<String, Double> e2top = new LinkedHashMap<String, Double>();           
-      for (Entry<String, Double> e : e2keyphrases.entrySet()) {       
+      Map<Integer, Double> e2top = new LinkedHashMap<Integer, Double>();           
+      for (Entry<Integer, Double> e : e2keyphrases.entrySet()) {       
         e2top.put(e.getKey(), e.getValue());
       }      
       e2keyphrases = e2top;
       
       
-      Map<String, TermTracer> matchedKeywords = new HashMap<String, TermTracer>();
-      for (String kp : matches.keySet()) {
+      Map<Integer, TermTracer> matchedKeywords = new HashMap<Integer, TermTracer>();
+      for (Integer kp : matches.keySet()) {
         TermTracer tt = new TermTracer();
         tt.setTermWeight(matches.get(kp));
         matchedKeywords.put(kp, tt);

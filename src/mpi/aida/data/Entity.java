@@ -3,7 +3,7 @@ package mpi.aida.data;
 import java.io.Serializable;
 import java.util.List;
 
-import javatools.parsers.Char;
+import mpi.tools.javatools.parsers.Char;
 
 public class Entity implements Serializable, Comparable<Entity>, Cloneable {
 
@@ -16,7 +16,7 @@ public class Entity implements Serializable, Comparable<Entity>, Cloneable {
   private int id = -1;
 
   
-  public static final String NO_MATCHING_ENTITY = "--NME--";
+  public static final String OOKBE = "--NME--";
 
   /**
    * Use this field to represent the mention-entity similarity computed with 
@@ -72,12 +72,12 @@ public class Entity implements Serializable, Comparable<Entity>, Cloneable {
     return name.hashCode();
   }
 
-  public boolean isNMEentity() {
-    return Entities.isNMEName(name);
+  public boolean isOOKBentity() {
+    return Entities.isOokbeName(name);
   }
 
   public String getNMEnormalizedName() {
-    String normName = name.replace("-"+NO_MATCHING_ENTITY, "").replace(' ', '_');
+    String normName = name.replace("-"+OOKBE, "").replace(' ', '_');
     return normName;
   }
 

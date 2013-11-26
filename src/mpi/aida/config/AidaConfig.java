@@ -2,10 +2,12 @@ package mpi.aida.config;
 
 import java.util.Properties;
 
+import mpi.aida.config.settings.PreparationSettings;
+import mpi.aida.data.Type;
+import mpi.aida.util.ClassPathUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import mpi.aida.util.ClassPathUtils;
 
 /**
  * Main configuration path for global settings.
@@ -32,7 +34,7 @@ public class AidaConfig {
 
   public static final String DATAACCESS_DIRECT_PATH = "dataAccessDirectPath";
 
-  public static final String RMI_TOKENIZER_LANGUAGE = "tokenizerLanguage";
+  public static final String LANGUAGE = "language";
 
   public static final String LOG_TO_DB = "logToDB";
 
@@ -48,7 +50,10 @@ public class AidaConfig {
   
   public static final String CACHE_WORD_EXPANSIONS = "cacheWordExpansions";
   
-  public static final String ENTITIES_CONTEXT_CACHE_SIZE = "entitiesContextCacheSize";  
+  public static final String ENTITIES_CONTEXT_CACHE_SIZE = "entitiesContextCacheSize";
+  
+  //format is [knowledgebase:typename,knowledgebase:typename, ...etc]
+  public static final String FILTERING_TYPES = "filteringTypes";  
 
   private Properties properties;
 
@@ -100,8 +105,12 @@ public class AidaConfig {
         value = "0";
       } else if (key.equals(CACHE_WORD_EXPANSIONS)) {
         value = "true";
+      } else if (key.equals(LANGUAGE)) {
+        value = "en";
       } else if (key.equals(ENTITIES_CONTEXT_CACHE_SIZE)) {
         value = "10";
+      } else if (key.equals(FILTERING_TYPES)) {
+        value = "";
       } else {
         logger.error("" +
         		"Missing key in properties file with no default value: " + key);
@@ -115,11 +124,36 @@ public class AidaConfig {
     return Integer.parseInt(value);
   }
   
+  
+  public static PreparationSettings.LANGUAGE getLanguage() {
+    return PreparationSettings.LANGUAGE.valueOf(get(LANGUAGE));
+  }
+  
   public static boolean getBoolean(String key) {
     return Boolean.parseBoolean(get(key));
   }
   
   public static void set(String key, String value) {
     AidaConfig.getInstance().setValue(key, value);
+  }
+
+  public static Type[] getFilteringTypes() {
+    String filteringTypesStr = get(FILTERING_TYPES);
+    if (filteringTypesStr.equals("")) {
+      return null;
+    }
+    String[] filteringTypeStrList = filteringTypesStr.split(",");
+    Type[] filteringTypes = new Type[filteringTypeStrList.length];
+    int i = 0;
+    for (String filteringTypeStr : filteringTypeStrList) {
+      int colonIndex = filteringTypeStr.indexOf(":");
+      if (colonIndex < 0) {
+        logger.error("Wrong filtering types string format in AIDA config file");
+      }
+      String knowledgebase = filteringTypeStr.substring(0, colonIndex);
+      String typename = filteringTypeStr.substring(colonIndex + 1);
+      filteringTypes[i++] = new Type(knowledgebase, typename);
+    }
+    return filteringTypes;
   }
 }

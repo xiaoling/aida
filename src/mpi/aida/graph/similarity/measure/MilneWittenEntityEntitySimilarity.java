@@ -81,7 +81,9 @@ public class MilneWittenEntityEntitySimilarity extends EntityEntitySimilarity {
     
     if (overlap > 0) {  
       // now calc the real similarity
-      double distance = (Math.log(max) - Math.log((double) overlap)) / (Math.log(collectionSize) - Math.log(min));
+      double distance = 
+          (Math.log(max) - Math.log((double) overlap)) /
+          (Math.log(collectionSize) - Math.log(min));
   
       sim = 1 - distance;
       

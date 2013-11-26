@@ -30,7 +30,7 @@ public class ResultEntity implements Comparable<ResultEntity>, Serializable {
   }
 
   public static ResultEntity getNoMatchingEntity() {
-    return new ResultEntity(Entity.NO_MATCHING_ENTITY, 0.0);
+    return new ResultEntity(Entity.OOKBE, 0.0);
   }
 
   public static List<ResultEntity> getResultEntityAsList(ResultEntity re) {
@@ -59,7 +59,7 @@ public class ResultEntity implements Comparable<ResultEntity>, Serializable {
   }
   
   public boolean isNoMatchingEntity() {
-    return entity.equals(Entity.NO_MATCHING_ENTITY);
+    return entity.equals(Entity.OOKBE);
   }
 
   @Override

@@ -16,9 +16,9 @@ public class DisambiguationResults implements Serializable {
 
   private static final long serialVersionUID = 8366493180300359941L;
 
-  private Map<ResultMention, List<ResultEntity>> mentionMappings;
+  private Map<ResultMention, List<ResultEntity>> mentionMappings = new HashMap<ResultMention, List<ResultEntity>>();
   
-  private Map<String, EntityMetaData> entitiesMetaData;
+  private Map<String, EntityMetaData> entitiesMetaData = new HashMap<String, EntityMetaData>();
 
   private String gTracerHtml;
 
@@ -26,16 +26,18 @@ public class DisambiguationResults implements Serializable {
 
   public DisambiguationResults(Map<ResultMention, List<ResultEntity>> mentionMappings, String gTracerHtml) {
     super();
-    this.mentionMappings = mentionMappings;
-    this.gTracerHtml = gTracerHtml;
-    Set<String> entities = new HashSet<String>();
-    for(List<ResultEntity> resultEntityList: mentionMappings.values()) {
-      for(ResultEntity resultEntity: resultEntityList) {
-        entities.add(resultEntity.getEntity());
+    if (mentionMappings != null) {      
+      this.mentionMappings = mentionMappings;
+      this.gTracerHtml = gTracerHtml;
+      Set<String> entities = new HashSet<String>();
+      for(List<ResultEntity> resultEntityList: mentionMappings.values()) {
+        for(ResultEntity resultEntity: resultEntityList) {
+          entities.add(resultEntity.getEntity());
+        }
       }
+  
+      this.entitiesMetaData = DataAccess.getEntitiesMetaData(entities);
     }
-
-    this.entitiesMetaData = DataAccess.getEntitiesMetaData(entities);
   }
 
   public List<ResultMention> getResultMentions() {

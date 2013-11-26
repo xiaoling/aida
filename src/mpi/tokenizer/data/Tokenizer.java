@@ -27,7 +27,7 @@ public class Tokenizer {
 
   /** type of tokenizer */
   public static enum type {
-    tokens, pos, ner, germanner, parse
+    tokens, pos, ner, parse, germantokens, germanpos, germanner
   };
 
   public static final String TEXT = "TEXT";
@@ -53,6 +53,10 @@ public class Tokenizer {
       "resources/corenlp/germanmodels/ner/hgc_175m_600.crf.ser.gz";
   private final String GERMAN_POS_HGC = 
       "resources/corenlp/germanmodels/pos/german-hgc.tagger";
+//  private final String GERMAN_POS_DEWAC = 
+//    "resources/corenlp/germanmodels/pos/german-dewac.tagger";
+//  private final String GERMAN_POS_FAST = 
+//    "resources/corenlp/germanmodels/pos/german-fast.tagger";
 //  private static final String GERMAN_PARSER =
 //	  "resources/corenlp/germanmodels/parser/germanFactored.ser.gz";
 //	  "resources/corenlp/germanmodels/parser/germanPCFG.ser.gz";
@@ -66,12 +70,27 @@ public class Tokenizer {
       props.put("annotators", "tokenize, ssplit, pos, lemma, ner");
     } else if (type.equals(Tokenizer.type.pos)) {
       props.put("annotators", "tokenize, ssplit, pos, lemma");
-      pipeline = new StanfordCoreNLP(props, true);
+//      pipeline = new StanfordCoreNLP(props, true); //?duplicate code line
     } else if (type.equals(Tokenizer.type.parse)) {
       props.put("annotators", "tokenize, ssplit, parse, pos, lemma");
-    } 
+    }
+    else if(type.equals(Tokenizer.type.germantokens)) {
+      props.put("annotators", "tokenize, ssplit");
+    }
     else if (type.equals(Tokenizer.type.germanner)) {
+      props.put("annotators", "tokenize, ssplit, pos, lemma, ner");
       props.put("pos.model", GERMAN_POS_HGC);
+//      props.put("pos.model", GERMAN_POS_DEWAC);
+      props.put("ner.model", GERMAN_NER_HGC);
+//    props.put("ner.model", GERMAN_NER_DEWAC + "," + GERMAN_NER_HGC);
+      props.put("ner.useSUTime", "false"); //false not for english
+      props.put("ner.applyNumericClassifiers", "false"); //false not for english
+//      props.put("parse.model", GERMAN_PARSER); //does not work, [do we need this?]
+    }
+    else if (type.equals(Tokenizer.type.germanpos)) {
+      props.put("annotators", "tokenize, ssplit, pos");
+      props.put("pos.model", GERMAN_POS_HGC);
+//      props.put("pos.model", GERMAN_POS_DEWAC);
       props.put("ner.model", GERMAN_NER_HGC);
       props.put("ner.useSUTime", "false"); //false not for english
       props.put("ner.applyNumericClassifiers", "false"); //false not for english
@@ -85,7 +104,7 @@ public class Tokenizer {
     parse(tokens, text, lemmatize);
     return tokens;
   }
-
+  
   private void parse(Tokens tokens, String text, boolean lemmatize) {
     try {
       if (text.trim().length() == 0) {
@@ -161,4 +180,23 @@ public class Tokenizer {
     whitespace.add(' ');
     whitespace.add('\t');
   }
+
+  /**
+   * @param args
+   */
+  public static void main(String[] args) {
+//    Tokenizer tokenizer = new Tokenizer(Tokenizer.type.ner);
+//    Tokens tokens = tokenizer.parse("Albert Einstein was born on 10. Mai in Ulm and was a scientist-politician under-21.", "test", false);
+    Tokenizer tokenizer = new Tokenizer(Tokenizer.type.germantokens);
+//    Tokens tokens = tokenizer.parse("Ministerin Schawan wurde durch Frau Wanka ersetzt, die zuvor Ministerin in Niedersachsen war. Die frühere Professorin für Mathematik war Mitglied des Kabinetts McAllister. Sie hat das Amt von  Schavan im Februar übernommen. Frau Schavan musste zurücktreten, weil ihre Doktorarbeit  mit dem Titel Person und Gewissen vom Winde verweht wurde.", "test", false);
+    Tokens tokens = tokenizer.parse("Albert Einstein wurde am 10. Mai in Ulm geboren.", "test", false);
+	  System.out.println(tokens);
+	  System.out.println(tokens.toText(0, 8));
+	  System.out.println(tokens.getToken(0).getNE());
+//    tokens.getStanfordTokens();
+//    for (String token : tokens.getStanfordTokens()) {
+//      System.out.println(token);
+//    }
+  }
+
 }

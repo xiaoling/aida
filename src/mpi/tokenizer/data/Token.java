@@ -4,8 +4,8 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Iterator;
 
-import javatools.datatypes.Pair;
-import javatools.parsers.Char;
+import mpi.tools.javatools.datatypes.Pair;
+import mpi.tools.javatools.parsers.Char;
 
 public class Token implements Serializable {
 
@@ -69,6 +69,10 @@ public class Token implements Serializable {
 
   public String getOriginal() {
     return original;
+  }
+  
+  public void setOriginal(String original) {
+    this.original = original;
   }
 
   public String getOriginalEnd() {

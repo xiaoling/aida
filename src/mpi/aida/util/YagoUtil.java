@@ -14,7 +14,7 @@ import mpi.aida.data.Entity;
 
 import org.apache.commons.lang.StringUtils;
 
-import basics.Normalize;
+import mpi.tools.basics.Normalize;
 
 /**
  * This class contains some convenience wrappers for accessing YAGO data.

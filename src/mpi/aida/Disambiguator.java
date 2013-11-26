@@ -23,6 +23,7 @@ import mpi.aida.graph.algorithms.CocktailParty;
 import mpi.aida.graph.algorithms.CocktailPartySizeConstrained;
 import mpi.aida.graph.algorithms.DisambiguationAlgorithm;
 import mpi.aida.util.DocumentCounter;
+import mpi.aida.util.RunningTimer;
 import mpi.experiment.trace.GraphTracer;
 import mpi.experiment.trace.GraphTracer.TracingTarget;
 import mpi.experiment.trace.NullTracer;
@@ -95,6 +96,8 @@ public class Disambiguator implements Runnable {
   }
 
   public DisambiguationResults disambiguate() throws Exception {
+    Integer timerId = RunningTimer.start("Disambiguator");
+
     Map<ResultMention, List<ResultEntity>> mentionMappings = null;
 
     switch (settings.getDisambiguationTechnique()) {
@@ -112,7 +115,8 @@ public class Disambiguator implements Runnable {
       default:
         break;
     }
-    
+    RunningTimer.end("Disambiguator", timerId);   
+
     // do the tracing
     String tracerHtml = null;  //tracer.getHtmlOutput();
     TracingTarget target = settings.getTracingTarget();
@@ -182,7 +186,7 @@ public class Disambiguator implements Runnable {
       Map<ResultMention, List<ResultEntity>> nmeCleanedResults = new HashMap<ResultMention, List<ResultEntity>>();
 
       for (Entry<ResultMention, List<ResultEntity>> e : results.entrySet()) {
-        if (Entities.isNMEName(e.getValue().get(0).getEntity())) {
+        if (Entities.isOokbeName(e.getValue().get(0).getEntity())) {
           List<ResultEntity> nme = new ArrayList<ResultEntity>(1);
           nme.add(ResultEntity.getNoMatchingEntity());
           nmeCleanedResults.put(e.getKey(), nme);

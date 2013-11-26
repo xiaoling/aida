@@ -5,6 +5,7 @@ import gnu.trove.list.linked.TIntLinkedList;
 import gnu.trove.map.hash.TIntObjectHashMap;
 import gnu.trove.set.hash.TIntHashSet;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,6 +13,7 @@ import mpi.aida.data.Entity;
 import mpi.aida.graph.similarity.context.EntitiesContext;
 import mpi.aida.graph.similarity.context.FastWeightedKeyphrasesContext;
 import mpi.aida.util.CollectionUtils;
+import mpi.experiment.trace.NullEntityEntityTracing;
 import mpi.experiment.trace.Tracer;
 import mpi.experiment.trace.measures.KeytermEntityEntityMeasureTracer;
 import mpi.experiment.trace.measures.TermTracer;
@@ -25,7 +27,7 @@ public class KOREEntityEntitySimilarityMeasure
 	}
 
 	@Override
-  public double calcSimilarity(Entity a, Entity b, EntitiesContext context) {
+  public double calcSimilarity(Entity a, Entity b, EntitiesContext context) {	  
     FastWeightedKeyphrasesContext kwc = (FastWeightedKeyphrasesContext) context;
 
     // generate keyphrase pairs that intersect
@@ -45,27 +47,41 @@ public class KOREEntityEntitySimilarityMeasure
     double n = .0;
     
     // tracing
-//    Map<String, TermTracer> matches = new HashMap<String, TermTracer>();
-    
+    Map<Integer, TermTracer> matchesA = new HashMap<Integer, TermTracer>();
+    Map<Integer, TermTracer> matchesB = new HashMap<Integer, TermTracer>();
+
     // iterate over overlapping phrase pairs
     for (int kpA : overlapping.keys()) {
       for (int kpB : overlapping.get(kpA).toArray()) {
         double psimn = .0; //, psimd = .0;
+        TermTracer tt = new TermTracer();
         for (int t : intersect(kwc.getKeyphraseTokenIds(kpA, true),
             kwc.getKeyphraseTokenIds(kpB, true))) {
-          psimn += Math.min(
+          double kwWeight = Math.min(
               kwc.getCombinedKeywordMiIdfWeight(a, t),
               kwc.getCombinedKeywordMiIdfWeight(b, t));
+          psimn += kwWeight;
+          // Requires too much main memory, enable if needed.
+          // if (kwWeight > 0.0) {
+          //  tt.addInnerMatch(t, kwWeight);
+          //}
         }
+        
         double kpWeight = Math.min(kwc.getCombinedKeyphraseMiIdfWeight(a, kpA), kwc.getCombinedKeyphraseMiIdfWeight(b, kpB));
-        double kpJaccardSim = (psimn / (kwc.getKeywordWeightSum(a, kpA) + kwc.getKeywordWeightSum(b, kpB) - psimn));        
-        double matchWeight = kpWeight * Math.pow(kpJaccardSim, 2);
-        
-        n += matchWeight;
-        
-//      TermTracer tt = new TermTracer();
-//      tt.setTermWeight(matchWeight);
-//      matches.put(kwc.getKeyphraseForId(kpB), tt);
+        double psimd = kwc.getKeywordWeightSum(a, kpA) + kwc.getKeywordWeightSum(b, kpB) - psimn;
+        if (psimd != 0.0) {
+          double kpJaccardSim = (psimn / psimd);        
+          double matchWeight = kpWeight * Math.pow(kpJaccardSim, 2);   
+          
+          n += matchWeight;
+          
+          // Tracing.
+          if (matchWeight > 0) {
+            matchesA.put(kpA, tt);
+            matchesB.put(kpB, tt);
+            tt.setTermWeight(matchWeight);
+          }
+        }
       }
     }
     
@@ -81,11 +97,18 @@ public class KOREEntityEntitySimilarityMeasure
       denom += wb;
     }
     
-//  collectTracingInfo(aname, bname, kwc.getEntityKeyphraseIds(aname), kwc.getEntityKeyphraseIds(bname), n / deno, matches, kwc);
+    int[] kpsA = kwc.getEntityKeyphraseIds(a);
+    int[] kpsB = kwc.getEntityKeyphraseIds(b);
     
-    return n / denom;
+    if (!(tracer.eeTracing() instanceof NullEntityEntityTracing)) {
+      collectTracingInfo(a, b, 
+          kpsA, kpsB, n / denom, matchesA, matchesB, kwc);
+    }
+        
+    double sim = n / denom;   
+    return sim;
   }
-
+	
 	protected double getOuterDenominator(double[] kpwA, double[] kpwB, double n) {
       return zipmax(kpwA, kpwB);
   }
@@ -113,6 +136,13 @@ public class KOREEntityEntitySimilarityMeasure
 	}
 
 	protected int[] intersect(int[] a, int[] b) {
+	  if (a == null || a.length == 0 || b == null || b.length == 0) {
+	    return new int[0];
+	  }
+    // TODO(jhoffart) make sure all lists are
+    // sorted when passed, drop the sorting.
+    Arrays.sort(a);
+    Arrays.sort(b);
 		TIntCollection is = new TIntLinkedList();
 		int i = 0, j = 0;
 		while (i < a.length && j < b.length) {
@@ -185,32 +215,31 @@ public class KOREEntityEntitySimilarityMeasure
 		return s;
 	}
 	
-  @SuppressWarnings("unused")
-  private void collectTracingInfo(Entity a, Entity b, int[] kpsA, int[] kpsB, double sim, Map<String, TermTracer> matches, FastWeightedKeyphrasesContext kwc) {
-    Map<String, Double> e1keyphrases = new HashMap<String, Double>();     
+  private void collectTracingInfo(Entity a, Entity b, int[] kpsA, int[] kpsB, double sim, Map<Integer, TermTracer> matchesA, Map<Integer, TermTracer> matchesB, FastWeightedKeyphrasesContext kwc) {
+    Map<Integer, Double> e1keyphrases = new HashMap<Integer, Double>();     
     for (int kp : kpsA) {
-      if (kwc.getCombinedKeyphraseMiIdfWeight(a, kp) > 0.0) {
-        e1keyphrases.put(kwc.getKeyphraseForId(kp), kwc.getCombinedKeyphraseMiIdfWeight(a, kp));
-      }
+//      if (kwc.getCombinedKeyphraseMiIdfWeight(a, kp) > 0.0) {
+        e1keyphrases.put(kp, kwc.getCombinedKeyphraseMiIdfWeight(a, kp));
+//      }
     }     
     e1keyphrases = CollectionUtils.sortMapByValue(e1keyphrases, true);    
 
-    Map<String, Double> e2keyphrases = new HashMap<String, Double>();
+    Map<Integer, Double> e2keyphrases = new HashMap<Integer, Double>();
     for (int kp : kpsB) {
-      if (kwc.getCombinedKeyphraseMiIdfWeight(b, kp) > 0.0) {
-        e2keyphrases.put(kwc.getKeyphraseForId(kp), kwc.getCombinedKeyphraseMiIdfWeight(b, kp));
-      }
+//      if (kwc.getCombinedKeyphraseMiIdfWeight(b, kp) > 0.0) {
+        e2keyphrases.put(kp, kwc.getCombinedKeyphraseMiIdfWeight(b, kp));
+//      }
     }  
     e2keyphrases = CollectionUtils.sortMapByValue(e2keyphrases, true);
 
     tracer.eeTracing().addEntityContext(a.getName(), e1keyphrases);
     tracer.eeTracing().addEntityContext(b.getName(), e2keyphrases);
 
-    KeytermEntityEntityMeasureTracer mt = new KeytermEntityEntityMeasureTracer("PartialKeyphraseSim", 0.0, e2keyphrases, matches);
+    KeytermEntityEntityMeasureTracer mt = new KeytermEntityEntityMeasureTracer("PartialKeyphraseSim", 0.0, e2keyphrases, matchesB, kwc.getAllKeyphraseTokens());
     mt.setScore(sim);
     tracer.eeTracing().addEntityEntityMeasureTracer(a.getName(), b.getName(), mt);
 
-    KeytermEntityEntityMeasureTracer mt2 = new KeytermEntityEntityMeasureTracer("PartialKeyphraseSim", 0.0, e1keyphrases, matches);
+    KeytermEntityEntityMeasureTracer mt2 = new KeytermEntityEntityMeasureTracer("PartialKeyphraseSim", 0.0, e1keyphrases, matchesA, kwc.getAllKeyphraseTokens());
     mt2.setScore(sim);
     tracer.eeTracing().addEntityEntityMeasureTracer(b.getName(), a.getName(), mt2);
   }

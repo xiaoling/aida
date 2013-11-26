@@ -32,7 +32,7 @@ public class InputTextInvertedIndex {
 			}
 			positions.add(position);
 			
-			if(!isRemoveStopWords || !StopWord.is(token)) {
+			if(!isRemoveStopWords || !StopWord.isStopwordOrSymbol(token)) {
   			positions = indexWithoutStopWords.get(token); 
   			if (positions == null) {
   				positions = new TIntLinkedList();

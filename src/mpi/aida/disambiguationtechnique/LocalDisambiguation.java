@@ -8,6 +8,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import mpi.aida.AidaManager;
 import mpi.aida.data.Entities;
@@ -18,6 +19,7 @@ import mpi.aida.data.ResultEntity;
 import mpi.aida.data.ResultMention;
 import mpi.aida.graph.similarity.EnsembleMentionEntitySimilarity;
 import mpi.aida.graph.similarity.util.SimilaritySettings;
+import mpi.aida.util.CollectionUtils;
 import mpi.experiment.trace.Tracer;
 import mpi.experiment.trace.data.EntityTracer;
 import mpi.experiment.trace.data.MentionTracer;
@@ -40,6 +42,9 @@ public class LocalDisambiguation implements Runnable {
 	protected boolean includeNullAsEntityCandidate;
 	
 	protected boolean includeContextMentions;
+	
+	// TODO(jhoffart) make this configurable. True should stay default.
+	protected boolean computeConfidence = true;
 	
 	protected double maxEntityRank;
 
@@ -78,13 +83,12 @@ public class LocalDisambiguation implements Runnable {
       logger.error("SQLException when getting candidates: " + 
                    e.getLocalizedMessage());
     }
-   
 		EnsembleMentionEntitySimilarity mes = prepapreMES();
-
 		try {
       disambiguate(mes);
     } catch (Exception e) {
       logger.error("Error: " + e.getLocalizedMessage());
+      e.printStackTrace();
     }
 		double runTime = (System.currentTimeMillis() - beginTime) / (double) 1000;
 		logger.info("Document '" + docId + "' done in " + nf.format(runTime) + "s");
@@ -107,13 +111,13 @@ public class LocalDisambiguation implements Runnable {
 		         " mentions, " + entities.size() + " entities)");
 		
 		if (includeNullAsEntityCandidate) {
-			entities.setIncludesNmeEntities(true);
+			entities.setIncludesOokbeEntities(true);
 		}
 
 		EnsembleMentionEntitySimilarity mes = null;
 		try {
-			mes = new EnsembleMentionEntitySimilarity(input.getMentions(), entities, ss,
-					docId, tracer);
+			mes = new EnsembleMentionEntitySimilarity(input.getMentions(), entities, 
+			    input.getContext(), ss, docId, tracer);
 			return mes;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -125,25 +129,55 @@ public class LocalDisambiguation implements Runnable {
 		for (Mention mention : input.getMentions().getMentions()) {		
 			List<ResultEntity> entities = new LinkedList<ResultEntity>();
 			
+			// Compute all scores.
+			Map<String, Double> entityScores = new HashMap<String, Double>();
 			for (Entity entity : mention.getCandidateEntities()) { 
 			  double sim = mes.calcSimilarity(mention, input.getContext(), entity);
-				entities.add(new ResultEntity(entity.getName(), sim));
+			  // After disambiguation, replace OOKBE suffixed name with placeholder.
+			  String name = entity.getName();
+        if (entity.isOOKBentity()) {
+          name = Entity.OOKBE;
+        }
+			  entityScores.put(name, sim);
 			}
 			
-			if (!entities.isEmpty()) {
-			  Collections.sort(entities);
-			} else {
-			  entities.add(ResultEntity.getNoMatchingEntity());
+			if (computeConfidence) {
+  	    // Normalize similarities so that they sum up to one. The mass of the
+        // score that the best entity accumulates will also be a measure of the
+        // confidence that the mapping is correct.
+			  entityScores = CollectionUtils.normalizeScores(entityScores);
 			}
+			
+			// Create ResultEntities.
+			for (Entry<String, Double> e : entityScores.entrySet()) {
+			  entities.add(new ResultEntity(e.getKey(), e.getValue()));
+			}
+  			
+	     // Distinguish a the cases of empty, unambiguous, and ambiguous mentions.
+      if (entities.isEmpty()) {
+        // Assume a 95% confidence, as the coverage of names of the dictionary
+        // is quite good.
+        ResultEntity re = ResultEntity.getNoMatchingEntity();
+        if (computeConfidence) {
+          re.setDisambiguationScore(0.95);
+        }
+        entities.add(re);
+      } else if (entities.size() == 1 && computeConfidence) {
+        // Do not give full confidence to unambiguous mentions, as there might
+        // be meanings missing.
+        entities.get(0).setDisambiguationScore(0.95);
+      } 
+			
+			// Sort the candidates by their score.
+			Collections.sort(entities);
 
+			// Fill solutions.
 			Map<ResultMention, List<ResultEntity>> docSolutions = solutions.get(docId);
 			if (docSolutions == null) {
 				docSolutions = new HashMap<ResultMention, List<ResultEntity>>();
 				solutions.put(docId, docSolutions);
 			}
-			
 			ResultMention rm = new ResultMention(docId, mention.getMention(), mention.getCharOffset(), mention.getCharLength());
-
 			docSolutions.put(rm, entities);
 		}
 	}

@@ -13,15 +13,17 @@ public class DocumentCounter extends Observable {
   private static final Logger logger = 
       LoggerFactory.getLogger(DocumentCounter.class);
   
+  private String resultFilePath;
   private int completed;
   private int total;
   private long startTime;
   
   private Map<String, DisambiguationResults> resultsMap;
   
-  public DocumentCounter(int total) {
+  public DocumentCounter(int total, String resultFilePath) {
     completed = 0;
     this.total = total;
+    this.resultFilePath = resultFilePath;
     startTime = System.currentTimeMillis();
   }
   
@@ -40,5 +42,9 @@ public class DocumentCounter extends Observable {
   
   public void setResultsMap(Map<String, DisambiguationResults> resultsMap) {
     this.resultsMap = resultsMap;
+  }
+
+  public String getResultFilePath() {
+    return resultFilePath;
   }
 }

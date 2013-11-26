@@ -61,19 +61,19 @@ public class JaccardEntityEntitySimilarityMeasure extends EntityEntitySimilarity
   }
   
   @SuppressWarnings("unused")
-  private void collectTracingInfo(Entity a, Entity b, int[] kpsA, int[] kpsB, double sim, Map<String, TermTracer> matches, FastWeightedKeyphrasesContext kwc) {
-    Map<String, Double> e1keyphrases = new HashMap<String, Double>();     
+  private void collectTracingInfo(Entity a, Entity b, int[] kpsA, int[] kpsB, double sim, Map<Integer, TermTracer> matches, FastWeightedKeyphrasesContext kwc) {
+    Map<Integer, Double> e1keyphrases = new HashMap<Integer, Double>();     
     for (int kp : kpsA) {
       if (kwc.getCombinedKeyphraseMiIdfWeight(a, kp) > 0.0) {
-        e1keyphrases.put(kwc.getKeyphraseForId(kp), kwc.getCombinedKeyphraseMiIdfWeight(a, kp));
+        e1keyphrases.put(kp, kwc.getCombinedKeyphraseMiIdfWeight(a, kp));
       }
     }     
     e1keyphrases = CollectionUtils.sortMapByValue(e1keyphrases, true);    
 
-    Map<String, Double> e2keyphrases = new HashMap<String, Double>();
+    Map<Integer, Double> e2keyphrases = new HashMap<Integer, Double>();
     for (int kp : kpsB) {
       if (kwc.getCombinedKeyphraseMiIdfWeight(b, kp) > 0.0) {
-        e2keyphrases.put(kwc.getKeyphraseForId(kp), kwc.getCombinedKeyphraseMiIdfWeight(b, kp));
+        e2keyphrases.put(kp, kwc.getCombinedKeyphraseMiIdfWeight(b, kp));
       }
     }  
     e2keyphrases = CollectionUtils.sortMapByValue(e2keyphrases, true);

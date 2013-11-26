@@ -2,6 +2,7 @@ package mpi.aida.graph.similarity.measure;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import mpi.aida.AidaManager;
 import mpi.aida.access.DataAccess;
 import mpi.aida.config.AidaConfig;
 import mpi.aida.data.Entities;
@@ -15,6 +16,8 @@ public class MilneWittenEntityEntitySimilarityTest {
 
   public MilneWittenEntityEntitySimilarityTest() {
     AidaConfig.set("dataAccess", "testing");
+    AidaConfig.set(AidaConfig.CACHE_WORD_EXPANSIONS, "false");
+    AidaManager.init();
   }
   
   @Test

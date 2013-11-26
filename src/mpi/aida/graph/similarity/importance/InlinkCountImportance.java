@@ -8,7 +8,7 @@ import java.sql.SQLException;
 import mpi.aida.access.DataAccess;
 import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
-import mpi.database.DBConnection;
+import mpi.tools.database.DBConnection;
 
 /**
  * Measures the importance of an entity by the number of

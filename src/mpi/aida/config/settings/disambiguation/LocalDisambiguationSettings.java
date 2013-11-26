@@ -1,9 +1,7 @@
 package mpi.aida.config.settings.disambiguation;
 
-import java.util.HashMap;
-import java.util.LinkedList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import mpi.aida.config.settings.DisambiguationSettings;
 import mpi.aida.config.settings.Settings.TECHNIQUE;
@@ -15,24 +13,23 @@ import mpi.aida.graph.similarity.util.SimilaritySettings;
  * mention-entity prior and the keyphrase based similarity.
  */
 public class LocalDisambiguationSettings extends DisambiguationSettings {
-    
+  
+  public static final List<String[]> simConfigs = 
+      Arrays.asList(new String[][] {
+          new String[] { "UnnormalizedKeyphrasesBasedMISimilarity", "KeyphrasesContext", "2.23198783427544E-6" },
+          new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "2.6026462624132183E-4" },
+          new String[] { "UnnormalizedKeyphrasesBasedMISimilarity", "KeyphrasesContext", "0.0817134645946377" },
+          new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "0.3220317242447891" }
+      });
+  
+  public static final Double priorWeight = 0.5959923145464976;
+  
   private static final long serialVersionUID = -1943862223862927646L;
 
   public LocalDisambiguationSettings() throws MissingSettingException {
     setDisambiguationTechnique(TECHNIQUE.LOCAL);
-    
-    List<String[]> simConfigs = new LinkedList<String[]>();
-    simConfigs.add(new String[] { "UnnormalizedKeyphrasesBasedMISimilarity", "KeyphrasesContext", "1.4616111666431395E-5" });
-    simConfigs.add(new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "4.291375037765039E-5" });
-    simConfigs.add(new String[] { "UnnormalizedKeyphrasesBasedMISimilarity", "KeyphrasesContext", "0.15586170799823845" });
-    simConfigs.add(new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "0.645200419577534" });   
-    
-    Map<String, double[]> minMaxs = new HashMap<String, double[]>();
-    minMaxs.put("prior", new double[] { 0.0, 1.0} );
-    minMaxs.put("UnnormalizedKeyphrasesBasedMISimilarity:KeyphrasesContext", new double[] { 0.0, 840.1373501651881});
-    minMaxs.put("UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext", new double[] { 0.0, 63207.231647131});
-    
-    SimilaritySettings switchedKPsettings = new SimilaritySettings(simConfigs, null, 0.19888034256218348, minMaxs);
+   
+    SimilaritySettings switchedKPsettings = new SimilaritySettings(simConfigs, null, priorWeight);
     switchedKPsettings.setIdentifier("SwitchedKP");
     switchedKPsettings.setPriorThreshold(0.9);
     setSimilaritySettings(switchedKPsettings);

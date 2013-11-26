@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 public class Mentions implements Serializable {
 
@@ -18,7 +19,7 @@ public class Mentions implements Serializable {
   /**
    * The expected types for entities to which those mentions will be disambiguated
    */
-  private List<String> entitiesTypes = null;
+  private Set<Type> entitiesTypes = null;
   
   public Mentions() {
     mentions = new LinkedList<Mention>();
@@ -48,6 +49,14 @@ public class Mentions implements Serializable {
 
   public List<Mention> getMentions() {
     return mentions;
+  }
+  
+  public List<String> getMentionNames() {
+    List<String> names = new ArrayList<String>(mentions.size());
+    for (Mention m : mentions) {
+      names.add(m.getMention());
+    }
+    return names;
   }
   
   public ArrayList<Integer> getMentionTokenStanfordIndices()
@@ -92,11 +101,11 @@ public class Mentions implements Serializable {
     Collections.sort(mentions);
   }
 
-  public List<String> getEntitiesTypes() {
+  public Set<Type> getEntitiesTypes() {
     return entitiesTypes;
   }
 
-  public void setEntitiesTypes(List<String> entitiesTypes) {
+  public void setEntitiesTypes(Set<Type> entitiesTypes) {
     this.entitiesTypes = entitiesTypes;
   }
 }

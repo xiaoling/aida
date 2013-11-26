@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import mpi.aida.AidaManager;
 import mpi.aida.Preparator;
 import mpi.aida.config.AidaConfig;
 import mpi.aida.config.settings.DisambiguationSettings;
@@ -29,6 +30,8 @@ public class CocktailPartyTest {
 	
 	public CocktailPartyTest() {
 	    AidaConfig.set("dataAccess", "testing");
+	    AidaConfig.set(AidaConfig.CACHE_WORD_EXPANSIONS, "false");
+	    AidaManager.init();
 	}
 
 	@Test
@@ -67,17 +70,17 @@ public class CocktailPartyTest {
 	    String mapped = mappings.get("Page").getEntity();
 	    double score = mappings.get("Page").getDisambiguationScore();
 	    assertEquals("Jimmy_Page", mapped);
-	    assertEquals(0.29169, score, 0.00001);
+	    assertEquals(0.899845, score, 0.00001);
 
 	    mapped = mappings.get("Kashmir").getEntity();
 	    score = mappings.get("Kashmir").getDisambiguationScore();
 	    assertEquals("Kashmir_(song)", mapped);
-	    assertEquals(0.29143, score, 0.00001);
+	    assertEquals(0.55489, score, 0.00001);
 
 	    mapped = mappings.get("Knebworth").getEntity();
 	    score = mappings.get("Knebworth").getDisambiguationScore();
 	    assertEquals("Knebworth_Festival", mapped);
-	    assertEquals(0.68879, score, 0.00001);
+	    assertEquals(0.73583, score, 0.00001);
 
 	    mapped = mappings.get("Les Paul").getEntity();
 	    score = mappings.get("Les Paul").getDisambiguationScore();

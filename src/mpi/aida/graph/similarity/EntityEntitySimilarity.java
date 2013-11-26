@@ -114,10 +114,6 @@ public class EntityEntitySimilarity {
     return new EntityEntitySimilarity(new KOREEntityEntitySimilarityMeasure(tracer), new FastWeightedKeyphrasesContext(entities, settings));
   }
   
-//  public static EntityEntitySimilarity getKORELSHEntityEntitySimilarity(Entities entities, EntitiesContextSettings settings, Tracer tracer) throws Exception {
-//    return new EntityEntitySimilarity(new LSHEntityEntitySimilarityMeasure(tracer), new LSHContext(entities, settings));
-//  }
-
   public static EntityEntitySimilarity getJaccardKeywordEntityEntitySimilarity(Entities entities, Tracer tracer) throws Exception {
     return new EntityEntitySimilarity(new JaccardEntityEntitySimilarityMeasure(tracer), new FastWeightedKeyphrasesContext(entities));
   }

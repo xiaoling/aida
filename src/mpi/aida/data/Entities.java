@@ -11,8 +11,8 @@ public class Entities implements Serializable, Iterable<Entity> {
 
   private static final long serialVersionUID = -5405018666688695438L;
   
-  private boolean includesNmeEntities;
-  
+  private boolean includesOokbeEntities;
+    
   private HashMap<String, Integer> entitiesNames;
 
   private Set<Entity> entities = null;
@@ -46,7 +46,7 @@ public class Entities implements Serializable, Iterable<Entity> {
     Set<String> names = new HashSet<String>();
     
     for (Entity e : entities) {
-      if (e.isNMEentity()) {
+      if (e.isOOKBentity()) {
         names.add(e.getNMEnormalizedName());
       } else {
         names.add(e.getName());
@@ -96,24 +96,28 @@ public class Entities implements Serializable, Iterable<Entity> {
     return entities.isEmpty();
   }
 
-  public boolean isIncludesNmeEntities() {
-    return includesNmeEntities;
+  public boolean isIncludesOokbeEntities() {
+    return includesOokbeEntities;
   }
 
-  public void setIncludesNmeEntities(boolean includesNmeEntities) {
-    this.includesNmeEntities = includesNmeEntities;
+  public void setIncludesOokbeEntities(boolean includesOokbeEntities) {
+    this.includesOokbeEntities = includesOokbeEntities;
   }
 
   public static String getMentionNMEKey(String mentionName) {
-    return mentionName+"-"+Entity.NO_MATCHING_ENTITY;
+    return mentionName+"-"+Entity.OOKBE;
   }
 
-  public static boolean isNMEName(String name) {
-    return name.endsWith("-"+Entity.NO_MATCHING_ENTITY);
+  public static boolean isOokbeName(String name) {
+    return (name.endsWith("-"+Entity.OOKBE) || name.endsWith("---NME--"));
   }
   
-  public static String getNameForNME(String nmeName) {
-    String name = nmeName.replace("-" + Entity.NO_MATCHING_ENTITY, "");
+  public static boolean isOokbEntity(String entity) {
+    return (entity.equals(Entity.OOKBE) || entity.equals("--NME--"));
+  }
+  
+  public static String getNameForOokbe(String nmeName) {
+    String name = nmeName.replace("-" + Entity.OOKBE, "");
     return name;
   }
 }

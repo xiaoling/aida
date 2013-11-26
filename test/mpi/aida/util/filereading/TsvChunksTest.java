@@ -6,7 +6,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.File;
 import java.util.List;
 
-import javatools.datatypes.Pair;
+import mpi.tools.javatools.datatypes.Pair;
 
 import org.junit.Test;
 

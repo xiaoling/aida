@@ -2,7 +2,7 @@ package mpi.aida.util;
 
 import java.sql.SQLException;
 
-import mpi.database.interfaces.DBPreparedStatementInterface;
+import mpi.tools.database.interfaces.DBPreparedStatementInterface;
 
 
 public class DBUtil {

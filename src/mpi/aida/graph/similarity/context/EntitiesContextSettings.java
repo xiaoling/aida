@@ -1,5 +1,7 @@
 package mpi.aida.graph.similarity.context;
 
+import java.util.Map;
+
 
 public class EntitiesContextSettings {
   public enum EntitiesContextType {
@@ -22,9 +24,9 @@ public class EntitiesContextSettings {
   private double entityCoherenceKeyphraseAlpha = DEFAULT_KEYPHRASE_ALPHA;
   private double entityCoherenceKeywordAlpha = DEFAULT_KEYWORD_ALPHA;
     
-  // Different keyphrase exclusion for MentionEntity and EntityEntity.
-  private String mentionEntityKeyphraseSourceExclusion;
-  private String entityEntityKeyphraseSourceExclusion;
+  // Different keyphrase source weights for MentionEntity and EntityEntity.
+  private Map<String, Double> mentionEntityKeyphraseSourceWeights;
+  private Map<String, Double> entityEntityKeyphraseSourceWeights;
   private double minimumEntityKeyphraseWeight;
   private int maxEntityKeyphraseCount;
   
@@ -65,21 +67,21 @@ public class EntitiesContextSettings {
     this.numberOfEntityKeyphrases = numberOfEntityKeyphrases;
   }
 
-  public String getEntityEntityKeyphraseSourceExclusion() {
-    return entityEntityKeyphraseSourceExclusion;
+  public Map<String, Double> getEntityEntityKeyphraseSourceWeights() {
+    return entityEntityKeyphraseSourceWeights;
   }
 
-  public void setEntityEntityKeyphraseSourceExclusion(String entityEntityKeyphraseSourceExclusion) {
-    this.entityEntityKeyphraseSourceExclusion = entityEntityKeyphraseSourceExclusion;
+  public void setEntityEntityKeyphraseSourceWeights(Map<String, Double> entityEntityKeyphraseSourceWeights) {
+    this.entityEntityKeyphraseSourceWeights = entityEntityKeyphraseSourceWeights;
   }
 
-  public String getMentionEntityKeyphraseSourceExclusion() {
-    return mentionEntityKeyphraseSourceExclusion;
+  public Map<String, Double> getMentionEntityKeyphraseSourceWeights() {
+    return mentionEntityKeyphraseSourceWeights;
   }
 
-  public void setMentionEntityKeyphraseSourceExclusion(
-      String mentionEntityKeyphraseSourceExclusion) {
-    this.mentionEntityKeyphraseSourceExclusion = mentionEntityKeyphraseSourceExclusion;
+  public void setMentionEntityKeyphraseSourceWeights(
+      Map<String, Double> mentionEntityKeyphraseSourceWeights) {
+    this.mentionEntityKeyphraseSourceWeights = mentionEntityKeyphraseSourceWeights;
   }
 
   public boolean shouldNormalizeWeights() {

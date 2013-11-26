@@ -6,6 +6,7 @@ import gnu.trove.map.hash.TIntObjectHashMap;
 import java.util.LinkedList;
 import java.util.List;
 
+import mpi.aida.AidaManager;
 import mpi.aida.access.DataAccess;
 import mpi.aida.config.AidaConfig;
 
@@ -16,6 +17,8 @@ public class ContextTest {
 
   public ContextTest() {
     AidaConfig.set("dataAccess", "testing");
+    AidaConfig.set(AidaConfig.CACHE_WORD_EXPANSIONS, "false");
+    AidaManager.init();
   }
   
   @Test

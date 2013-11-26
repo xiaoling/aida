@@ -1,22 +1,19 @@
 package mpi.aida.util.htmloutput;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import mpi.aida.data.DisambiguationResults;
+import mpi.aida.data.PreparedInput;
+import mpi.aida.data.ResultMention;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
-import basics.Basics;
-import mpi.aida.data.DisambiguationResults;
-import mpi.aida.data.PreparedInput;
-import mpi.aida.data.ResultMention;
-import mpi.aida.util.htmloutput.GenerateWebHtml;
 
 /**
  * Constructs HTML version of disambiguated results from JSON String.
@@ -98,14 +95,30 @@ public class HtmlGenerator {
    * @return HTML snippet for annotated string.
    */
   public String getAnnotatedText(){
-    String text = (String)jsonContent.get("annotatedText");
-	Pattern pattern = Pattern.compile("\\[\\[(http://[^|]+)\\|([^]]+)\\]\\]");
-	Matcher matcher = pattern.matcher(text);
-	StringBuffer sb =  new StringBuffer();
-	while(matcher.find()){
-		text = text.replace(matcher.group(),"<small>[<a href='"+matcher.group(1)+"'>"+matcher.group(2)+"</a></small>]"+matcher.group(2));
-	}
-    return text;
+    Map<String, String> url2rep = new HashMap<String, String>();
+    JSONObject entities = (JSONObject) jsonContent.get("entityMetadata");
+    for (Object o : entities.keySet()) {
+      String id = (String) o;
+      url2rep.put(
+          (String) ((JSONObject) entities.get(id)).get("url"),
+          (String) ((JSONObject) entities.get(id)).get("readableRepr"));
+    }
+    String annotatedText = (String)jsonContent.get("annotatedText");    
+    Pattern pattern = Pattern.compile("\\[\\[([^|]+)\\|([^]]+)\\]\\]");
+    Matcher matcher = pattern.matcher(annotatedText);
+    StringBuffer sb =  new StringBuffer();
+    int current = 0;
+    while (matcher.find()){
+      sb.append(annotatedText.substring(current, matcher.start()));
+      String url = matcher.group(1);
+      String mention = matcher.group(2);
+      String representation = url2rep.get(url);
+      sb.append("<span class='eq'>" + mention + "</span>");
+      sb.append(" <small>[<a href=" + url + ">" + representation + "</a>]</small>");
+      current = matcher.end();
+    }
+    sb.append(annotatedText.substring(current, annotatedText.length()));
+    return sb.toString();
   }
 
   /**

@@ -6,7 +6,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.Iterator;
 import java.util.List;
 
-import javatools.datatypes.Pair;
+import mpi.tools.javatools.datatypes.Pair;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -4,9 +4,12 @@ import gnu.trove.list.linked.TIntLinkedList;
 import gnu.trove.map.hash.TIntDoubleHashMap;
 import gnu.trove.map.hash.TIntIntHashMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
+import gnu.trove.map.hash.TObjectIntHashMap;
 import gnu.trove.set.hash.TIntHashSet;
 
 import java.util.Collection;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import mpi.aida.access.DataAccess;
 import mpi.aida.data.Entities;
@@ -16,7 +19,7 @@ import mpi.aida.graph.similarity.context.EntitiesContextSettings.EntitiesContext
 import mpi.aida.graph.similarity.measure.WeightComputation;
 import mpi.aida.util.RunningTimer;
 import mpi.aida.util.StopWord;
-import mpi.database.DBConnection;
+import mpi.tools.database.DBConnection;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,11 +44,16 @@ public class KeyphrasesContext extends EntitiesContext {
   protected TIntObjectHashMap<TIntDoubleHashMap> entity2keyphrase2mi;
   protected TIntDoubleHashMap keyword2idf;
     
+  private TIntObjectHashMap<TIntIntHashMap> entity2keyphrase2source;
+  private TIntDoubleHashMap keyphraseSourceId2dweights;
+  private TObjectIntHashMap<String> keyphraseSource2id;
+
   protected Entities realEntities;
     
   private int collectionSize_;
   
   DBConnection con;
+
 
   public KeyphrasesContext(Entities entities) throws Exception {
     super(entities, null);
@@ -98,27 +106,36 @@ public class KeyphrasesContext extends EntitiesContext {
     // remove nme entities before setting up
     realEntities = new Entities();
     for (Entity e : entities) {
-      if (!e.isNMEentity()) {
+      if (!e.isOOKBentity()) {
         realEntities.add(e);
       }
     }
-
-    String keyphraseSourceExclusion = null;
-    if (settings.getEntitiesContextType().equals(EntitiesContextType.ENTITY_ENTITY)) {
-      keyphraseSourceExclusion = settings.getEntityEntityKeyphraseSourceExclusion();
-    } else if (settings.getEntitiesContextType().equals(EntitiesContextType.MENTION_ENTITY)) {
-      keyphraseSourceExclusion = settings.getMentionEntityKeyphraseSourceExclusion();
+  
+    Map<String, Double> keyphraseSourceWeights = null;
+    if (settings != null) {
+      if (settings.getEntitiesContextType().equals(EntitiesContextType.ENTITY_ENTITY)) {
+        keyphraseSourceWeights = settings.getEntityEntityKeyphraseSourceWeights();
+      } else if (settings.getEntitiesContextType().equals(EntitiesContextType.MENTION_ENTITY)) {
+        keyphraseSourceWeights = settings.getMentionEntityKeyphraseSourceWeights();
+      }
     }
-
+  
     logger.debug("Retrieving all entity keyphrases/keywords + weights");
     Integer uniqueId = RunningTimer.start(getIdentifier());
     RunningTimer.stageStart(
         getIdentifier(), "EntityKeyphrasesTokensMI", uniqueId);
+    // By default there is no restriction.
+    double minEntityKeyphraseWeight = 0.0;
+    int maxEntityKeyphraseCount = Integer.MAX_VALUE;
+    if (settings != null) {
+      minEntityKeyphraseWeight = settings.getMinimumEntityKeyphraseWeight();
+      maxEntityKeyphraseCount = settings.getMaxEntityKeyphraseCount();
+    }
     Keyphrases keyphrases = 
         DataAccess.getEntityKeyphrases(
-            entities, keyphraseSourceExclusion, 
-            settings.getMinimumEntityKeyphraseWeight(),
-            settings.getMaxEntityKeyphraseCount());
+            entities, keyphraseSourceWeights, 
+            minEntityKeyphraseWeight,
+            maxEntityKeyphraseCount);
     eKps = keyphrases.getEntityKeyphrases();
     kpTokens = keyphrases.getKeyphraseTokens();
     entity2keyword2mi = keyphrases.getEntityKeywordWeights();
@@ -130,14 +147,14 @@ public class KeyphrasesContext extends EntitiesContext {
     allKeyphrases = new TIntHashSet();
     allKeywords = new TIntHashSet();
     kpTokensNoStopwords = new TIntObjectHashMap<int[]>();
-
+  
     for (int keyphrase : kpTokens.keys()) {
       allKeyphrases.add(keyphrase);
       int[] keywords = kpTokens.get(keyphrase); 
       allKeywords.addAll(keywords);
       TIntLinkedList keywordsNoStopwords = new TIntLinkedList();
       for (int keyword : keywords) {
-        if (!StopWord.is(keyword)) {
+        if (!StopWord.isStopwordOrSymbol(keyword)) {
           keywordsNoStopwords.add(keyword);
         }
       }
@@ -159,6 +176,16 @@ public class KeyphrasesContext extends EntitiesContext {
         getIdentifier(), "IDFComputation", uniqueId);
     RunningTimer.end(getIdentifier(), uniqueId);
     
+    entity2keyphrase2source = keyphrases.getEntityKeyphraseSources();
+    keyphraseSource2id = keyphrases.getKeyphraseSource2id();
+    keyphraseSourceId2dweights = new TIntDoubleHashMap();
+    if (keyphraseSourceWeights != null) {
+      for (Entry<String, Double> e : keyphraseSourceWeights.entrySet()) {
+        keyphraseSourceId2dweights.put(
+            keyphraseSource2id.get(e.getKey()), e.getValue());
+      }
+    }
+        
     logger.debug("Finished KeyphrasesContext for " +
         entities.uniqueNameSize() + " entities, " +
         allKeywords.size() + " keywords");
@@ -229,6 +256,22 @@ public class KeyphrasesContext extends EntitiesContext {
       }
            
       keyword2idf.put(keyword, idf);
+    }
+  }
+
+  public double getKeyphraseSourceWeight(Entity entity, int keyphrase) {
+    if (keyphraseSourceId2dweights != null && 
+        !keyphraseSourceId2dweights.isEmpty()) {
+      int source = entity2keyphrase2source.get(entity.getId()).get(keyphrase);
+      if (keyphraseSourceId2dweights.contains(source)) {
+        return keyphraseSourceId2dweights.get(source);
+      } else {
+        // Source not assigned, default to 1.
+        return 1.0;
+      }
+    } else {
+      // Default weight is always 1.
+      return 1.0;
     }
   }
   

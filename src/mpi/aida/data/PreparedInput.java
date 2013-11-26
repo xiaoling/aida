@@ -6,11 +6,13 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javatools.util.FileUtils;
+import mpi.tools.javatools.util.FileUtils;
+import mpi.aida.access.DataAccess;
 import mpi.aida.util.filereading.FileEntries;
 import mpi.tokenizer.data.Token;
 import mpi.tokenizer.data.Tokens;
@@ -62,17 +64,20 @@ public class PreparedInput {
    * @param file  File in AIDA collection format.
    */
   public PreparedInput(File file) {
-    this(file, 0);
+    this(file, 0, true);
   }
-  
+    
   /**
    * Loads the necessary information from a file in AIDA-collection-format, 
    * discarding mentions with less than the given minimum occrurence count.
    * 
    * @param file  File in AIDA collection format.
+   * @param mentionMinOccurrences Minimum number of occurrences a mention must have to be included
+   *                              (must be present in data)
+   * @param inludeOODMentions Set to false to drop all mentions that are not in the dictionary.                             
    */
-  public PreparedInput(File file, int mentionMinOccurrences) {
-    PreparedInput loaded = loadFrom(file, mentionMinOccurrences);
+  public PreparedInput(File file, int mentionMinOccurrences, boolean inludeOODMentions) {
+    PreparedInput loaded = loadFrom(file, mentionMinOccurrences, inludeOODMentions);
     docId_ = loaded.getDocId();
     tokens_ = loaded.getTokens();
     context_ = loaded.getContext();
@@ -109,14 +114,14 @@ public class PreparedInput {
     return docId_;
   }
   
-  private PreparedInput loadFrom(File f, int mentionMinOccurrences) {
+  private PreparedInput loadFrom(File f, int mentionMinOccurrences, boolean includeOutOfDictionaryMentions) {
     String docId = null;
     Tokens tokens = null;
     Mentions mentions = null;
     long timestamp = 0;
     // Helpers.
     boolean first = true;
-    int sentence = -1;
+    int sentence = 0;
     int position = -1;
     int index = 0;
     for (String line : new FileEntries(f)) {
@@ -124,7 +129,7 @@ public class PreparedInput {
         // Read metadata.
         if (!line.startsWith("-DOCSTART-")) {
           logger_.error("Invalid input format, first line has to start with " +
-              "-DOCSTART-");
+          		"-DOCSTART-");
         } else {
           // Parse metadata.
           String[] data = line.split("\t");
@@ -206,11 +211,23 @@ public class PreparedInput {
           mention.setCharLength(textMention.length());
           mention.setMention(textMention);
           mention.setGroundTruthResult(entity);
-          mentions.addMention(mention);
           mention.setOccurrenceCount(mentionOccurrenceCount);
-        }
+          mentions.addMention(mention);
+        } 
         index = endIndex + 1;
       }
+    }
+    if (!includeOutOfDictionaryMentions) {
+      Map<String, Entities> candidates = 
+          DataAccess.getEntitiesForMentions(mentions.getMentionNames(), 1.0);
+      Mentions mentionsToInclude = new Mentions();
+      for (Mention m : mentions.getMentions()) {
+        Entities cands = candidates.get(m.getMention());
+        if (!cands.isEmpty()) {
+          mentionsToInclude.addMention(m);
+        }
+      }
+      mentions = mentionsToInclude;
     }
     if (tokens != null) {
       List<String> content = new LinkedList<String>();
@@ -272,13 +289,13 @@ public class PreparedInput {
         writer.newLine();
       }
       if (mention.getGroundTruthResult() == null) {
-        mention.setGroundTruthResult("--UNKOWN--");
+        mention.setGroundTruthResult("--UNKNOWN--");
       }
-      String NE = (tokens.getToken(i).getNE() != null) ? tokens.getToken(i).getNE() : "NULL";
+      String NE = (tokens.getToken(i).getNE() != null) ? tokens.getToken(i).getNE() : "NULL";     
       String line = tokens.getToken(i).getOriginal() + "\t" + start + 
-          "\t" + mention.getMention() + 
-          "\t" + mention.getGroundTruthResult() +
-          "\t" + NE;
+                    "\t" + mention.getMention() + 
+                    "\t" + mention.getGroundTruthResult() +
+                    "\t" + NE;
       if (mention.getOccurrenceCount() > 0) {
         line += "\t" + mention.getOccurrenceCount();
       }

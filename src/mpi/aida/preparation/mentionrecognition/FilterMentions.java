@@ -1,18 +1,23 @@
 package mpi.aida.preparation.mentionrecognition;
 
+import java.io.IOException;
 import java.io.Serializable;
-import java.util.LinkedList;
-import java.util.List;
 
-import javatools.datatypes.Pair;
 import mpi.aida.config.settings.PreparationSettings;
+import mpi.aida.config.settings.PreparationSettings.LANGUAGE;
 import mpi.aida.data.Mentions;
 import mpi.aida.data.PreparedInput;
-import mpi.tokenizer.data.Token;
+import mpi.tokenizer.data.Tokenizer;
+import mpi.tokenizer.data.TokenizerManager;
 import mpi.tokenizer.data.Tokens;
+import mpi.tools.javatools.datatypes.Pair;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FilterMentions implements Serializable {
-
+  private Logger logger_ = LoggerFactory.getLogger(FilterMentions.class);
+  
   private static final long serialVersionUID = 6260499966421708963L;
 
   private NamedEntityFilter namedEntityFilter = null;
@@ -20,50 +25,81 @@ public class FilterMentions implements Serializable {
   private ManualFilter manualFilter = null;
 
   private HybridFilter hybridFilter = null;
-
+  
   public FilterMentions() {
     namedEntityFilter = new NamedEntityFilter();
     manualFilter = new ManualFilter();
     hybridFilter = new HybridFilter();
-    // TODO(boldyrev) Add dictionary-based filter here.
   }
 
   /** which type of tokens to get*/
   public static enum FilterType {
-    STANFORD_NER, Manual, ManualPOS, Manual_NER, Hybrid, None;
+    STANFORD_NER, Manual, DICTIONARY, Manual_NER, ManualPOS;
   };
-  public PreparedInput filter(String text, String docId, Tokens tokens, FilterType by) {
-    return filter(text, docId, tokens, by, PreparationSettings.LANGUAGE.ENGLISH);
-  }
   
-  public PreparedInput filter(String text, String docId, Tokens tokens, FilterType by, PreparationSettings.LANGUAGE language) {
-    // TODO(mamir) make sure language is passed from the outside.
+  public PreparedInput filter(String text, String docId, FilterType by, boolean isHybrid, PreparationSettings.LANGUAGE language) {
     Mentions mentions = null;
-    Tokens returnTokens = null;
-    if (by.equals(FilterType.STANFORD_NER)) {
-      mentions = namedEntityFilter.filter(tokens);
-      returnTokens = tokens;
-    } else if (by.equals(FilterType.Manual) || by.equals(FilterType.ManualPOS) || by.equals(FilterType.Manual_NER)) {
-      Pair<Tokens, Mentions> tokensMentions = manualFilter.filter(text, docId, by);
+    Mentions manualMentions = null;
+    Tokens tokens = null;
+    
+    //manual case handled separately
+    if (by.equals(FilterType.Manual) || by.equals(FilterType.ManualPOS) || by.equals(FilterType.Manual_NER)) {
+      Pair<Tokens, Mentions> tokensMentions = manualFilter.filter(text, docId, by, language);
       mentions = tokensMentions.second();
-      returnTokens = tokensMentions.first();
-    } else if (by.equals(FilterType.Hybrid)) {
-      Pair<Tokens, Mentions> tokensMentions = manualFilter.filter(text, docId, by);
-      Mentions manualMentions = tokensMentions.second();
-      Mentions NERmentions = namedEntityFilter.filter(tokensMentions.first());
-      mentions = hybridFilter.parse(manualMentions, NERmentions);
-      returnTokens = tokensMentions.first();
-    } else if (by.equals(FilterType.None)) {
-      mentions = new Mentions();
-      List<String> tokenlist = new LinkedList<String>();
-      for (int p = 0; p < tokens.size(); p++) {
-        Token token = tokens.getToken(p);
-        tokenlist.add(token.getOriginal());
-      }
-      returnTokens = tokens;
+      tokens = tokensMentions.first();
+      PreparedInput preparedInput = new PreparedInput(docId, tokens, mentions);
+      return preparedInput;
     }
-    // TODO(boldyrev) add dictionary based here. Respect the input language (ENGLISH or GERMAN). 
-    PreparedInput preparedInput = new PreparedInput(docId, returnTokens, mentions);
+    
+    //if hybrid mention detection, use manual filter to get the tokens
+    //and then pass them the appropriate ner 
+    if(isHybrid) {
+      Pair<Tokens, Mentions> tokensMentions = manualFilter.filter(text, docId, by, language);
+      manualMentions = tokensMentions.second();
+      tokens = tokensMentions.first();
+    } else { //otherwise tokenize normally
+      Tokenizer.type type = buildTokenizerType(by, language);
+      tokens = TokenizerManager.parse(docId, text, type, false);
+    }
+    
+    if(by.equals(FilterType.STANFORD_NER)) {
+      mentions = namedEntityFilter.filter(tokens);
+    }
+    
+    //if hybrid mention detection, merge both types mentions
+    if(isHybrid) {
+      mentions = hybridFilter.parse(manualMentions, mentions);
+    }
+    
+    PreparedInput preparedInput = new PreparedInput(docId, tokens, mentions);
     return preparedInput;
+  }
+
+  private mpi.tokenizer.data.Tokenizer.type buildTokenizerType(FilterType by, LANGUAGE language) {
+    if (by == FilterType.STANFORD_NER) {
+      switch (language) {
+        case de:
+          return Tokenizer.type.germanner;
+        case en:
+          return Tokenizer.type.ner;
+        default:
+          break;
+      }
+    } else if (by == FilterType.DICTIONARY) {
+      switch (language) {
+        case de:
+          return Tokenizer.type.germantokens;
+        case en:
+          return Tokenizer.type.tokens;
+        default:
+          break;
+      }
+    }
+    return Tokenizer.type.ner;
+  }
+
+  @Deprecated
+  public PreparedInput filter(String text, String docId, Tokens tokens, FilterType by, boolean isHybrid) {
+    return filter(text, docId, by, isHybrid, LANGUAGE.en);
   }
 }

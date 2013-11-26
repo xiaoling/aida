@@ -23,6 +23,7 @@ import mpi.aida.graph.Graph;
 import mpi.aida.graph.GraphNode;
 import mpi.aida.graph.GraphNodeTypes;
 import mpi.aida.graph.extraction.DegreeComparator;
+import mpi.aida.util.RunningTimer;
 import mpi.experiment.trace.GraphTracer;
 import mpi.experiment.trace.NullGraphTracer;
 
@@ -80,7 +81,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 	public Map<ResultMention, List<ResultEntity>> disambiguate()
 			throws Exception {
 		solution = new HashMap<ResultMention, List<ResultEntity>>();
-
+		int moduleId = RunningTimer.start("CocktailPartyDisambiguation");
 		int diameter = getDiameter();
 		long start = System.currentTimeMillis();
 		// Rescale the distance threshold by the global average distance
@@ -346,9 +347,8 @@ public class CocktailParty extends DisambiguationAlgorithm {
 			GraphTracer.gTracer.addStat(graph.getName(), "Runtime",
 					String.format("%.4fs", seconds));
 		}
-
+		RunningTimer.end("CocktailPartyDisambiguation", moduleId);
 		return solution;
-
 	}
 
 	protected int getDiameter() throws IOException {

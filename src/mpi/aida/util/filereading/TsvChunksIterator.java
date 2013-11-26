@@ -12,7 +12,7 @@ import java.util.NoSuchElementException;
 
 import mpi.aida.util.TsvUtils;
 
-import javatools.datatypes.Pair;
+import mpi.tools.javatools.datatypes.Pair;
 
 
 public class TsvChunksIterator implements Iterator<Pair<String[], List<String[]>>> {

@@ -6,15 +6,10 @@ import gnu.trove.map.hash.TIntObjectHashMap;
 import gnu.trove.set.hash.TIntHashSet;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
-import javaewah.EWAHCompressedBitmap;
 import mpi.aida.access.DataAccess;
 import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
-import mpi.experiment.trace.GraphTracer;
-import mpi.experiment.trace.NullGraphTracer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -136,92 +131,6 @@ public class FastWeightedKeyphrasesContext extends WeightedKeyphrasesContext {
 	  return m;
   }
 
-  protected TIntObjectHashMap<float[]> fillEntityVectors() {   
-    TIntObjectHashMap<float[]> vectors = new TIntObjectHashMap<float[]>();
-
-    for (Entity e : entities) {
-      float[] weights = new float[allKeywords.size()];
-
-      for (int kp : eKps.get(e.getId())) {
-        for (int tokenId : kpTokens.get(kp)) {
-          double mi = entity2keyword2mi.get(e.getId()).get(tokenId);
-          double idf = keyword2idf.get(tokenId);
-          
-          float finalTokenWeight = (float) ((keywordCoherenceAlpha * mi) + ((1-keywordCoherenceAlpha) * idf));
-          
-          weights[tokenId] = finalTokenWeight;
-        }
-      }
-
-      if (!(GraphTracer.gTracer instanceof NullGraphTracer)) {
-        Map<String, Float> entityKeywords = new HashMap<String, Float>();
-
-        for (int i = 0; i < weights.length; i++) {
-          if (weights[i] > 0.0) {
-            entityKeywords.put(getKeywordForId(i), weights[i]);
-          }
-        }
-      }
-
-      vectors.put(e.getId(), weights);
-    }
-    
-    return vectors;
-  }
-
-  @SuppressWarnings("unused")
-  private TIntDoubleHashMap calculateVectorNorms(TIntObjectHashMap<float[]> vectors) {
-    TIntDoubleHashMap norms = new TIntDoubleHashMap();
-        
-    for (int e : vectors.keys()) {
-      double norm = 0.0;
-      for (float f : vectors.get(e)) {
-        norm += f * f;
-      }
-      norms.put(e, Math.sqrt(norm));
-    }
-    return norms;
-  }
-
-  @SuppressWarnings("unused")
-  private TIntObjectHashMap<EWAHCompressedBitmap> createBitMaps(TIntObjectHashMap<float[]> vectors) {
-    TIntObjectHashMap<EWAHCompressedBitmap> bitMaps = new TIntObjectHashMap<EWAHCompressedBitmap>();
-    
-    for (int e : vectors.keys()) {
-      EWAHCompressedBitmap bm = new EWAHCompressedBitmap();
-      bitMaps.put(e, bm);
-      
-      float[] values = vectors.get(e);
-      for (int i=0;i<values.length;i++) {
-        if (values[i] > 0.0) {
-          bm.set(i);
-        }
-      }
-    }
-    
-    return bitMaps;
-  }
-
-  @SuppressWarnings("unused")
-  private TIntObjectHashMap<EWAHCompressedBitmap> createKeyphraseBitMaps() {    
-    TIntObjectHashMap<EWAHCompressedBitmap> bitMaps = new TIntObjectHashMap<EWAHCompressedBitmap>();
-
-    for (int kp : kpTokens.keys()) {
-      EWAHCompressedBitmap bm = new EWAHCompressedBitmap();
-      
-      int[] keywordIds = getKeyphraseTokenIds(kp, true);
-      Arrays.sort(keywordIds);
-      
-      for (int id : keywordIds) {
-        bm.set(id);
-      }
-      
-      bitMaps.put(kp, bm);
-    }
-    
-    return bitMaps;
-  }
-
   @Override
   public int[] getContext(Entity entity) {
     TIntLinkedList keywords = new TIntLinkedList();    
@@ -273,5 +182,10 @@ public class FastWeightedKeyphrasesContext extends WeightedKeyphrasesContext {
 
   public String getKeywordForId(int kwId) {
     return DataAccess.getWordForId(kwId);
+  }
+
+  // For tracing only. Please don't abuse!
+  public TIntObjectHashMap<int[]> getAllKeyphraseTokens() {
+    return kpTokens;
   }
 }

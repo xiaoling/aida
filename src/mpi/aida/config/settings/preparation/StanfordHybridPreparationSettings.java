@@ -15,7 +15,8 @@ public class StanfordHybridPreparationSettings extends PreparationSettings {
   private static final long serialVersionUID = 3743560957961384100L;
 
   public StanfordHybridPreparationSettings() {
-    this.setMentionsFilter(FilterType.Hybrid);
+    this.setMentionsFilter(FilterType.STANFORD_NER);
+    this.setUseHybridMentionDetection(true);
     this.setFilteringTypes(null);
   }
 }

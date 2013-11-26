@@ -1,9 +1,7 @@
 package mpi.aida.config.settings.disambiguation;
 
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import mpi.aida.access.DataAccess;
 import mpi.aida.access.DataAccessSQL;
@@ -35,35 +33,27 @@ public class CocktailPartyKORELSHDisambiguationSettings extends DisambiguationSe
     setUseCoherenceRobustnessTest(true);
     setCohRobustnessThreshold(0.9);
     
-    Map<String, double[]> minMaxs = new HashMap<String, double[]>();
-    minMaxs.put("prior", new double[] { 0.0, 1.0} );
-    minMaxs.put("UnnormalizedKeyphrasesBasedMISimilarity:KeyphrasesContext", new double[] { 0.0, 840.1373501651881});
-    minMaxs.put("UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext", new double[] { 0.0, 63207.231647131});
-    
-    List<String[]> simConfigs = new LinkedList<String[]>();
-    simConfigs.add(new String[] { "UnnormalizedKeyphrasesBasedMISimilarity", "KeyphrasesContext", "1.4616111666431395E-5" });
-    simConfigs.add(new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "4.291375037765039E-5" });
-    simConfigs.add(new String[] { "UnnormalizedKeyphrasesBasedMISimilarity", "KeyphrasesContext", "0.15586170799823845" });
-    simConfigs.add(new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "0.645200419577534" });  
     List<String[]> cohConfigs = new LinkedList<String[]>();
     cohConfigs.add(new String[] { "KORELSHEntityEntitySimilarity", "1.0" });
 
-    SimilaritySettings switchedKPsettings = new SimilaritySettings(simConfigs, cohConfigs, 0.19888034256218348, minMaxs);
+    SimilaritySettings switchedKPsettings = new SimilaritySettings(
+        LocalDisambiguationSettings.simConfigs, cohConfigs, 
+        LocalDisambiguationSettings.priorWeight);
     switchedKPsettings.setIdentifier("SwitchedKP");
     switchedKPsettings.setPriorThreshold(0.9);
     switchedKPsettings.setEntityCohKeyphraseAlpha(1.0);
     switchedKPsettings.setEntityCohKeywordAlpha(0.0);
     switchedKPsettings.setShouldNormalizeCoherenceWeights(true);
-    switchedKPsettings.setEntityEntityKeyphraseSourceExclusion(DataAccess.KPSOURCE_INLINKTITLE);
+    List<String[]> sourceWeightConfigs = new LinkedList<String[]>();
+    sourceWeightConfigs.add(new String[] { DataAccess.KPSOURCE_INLINKTITLE, "0.0" });
+    switchedKPsettings.setEntityEntityKeyphraseSourceWeights(sourceWeightConfigs);
     switchedKPsettings.setLshBandSize(2);
     switchedKPsettings.setLshBandCount(100);
     switchedKPsettings.setLshDatabaseTable(DataAccessSQL.ENTITY_LSH_SIGNATURES);
     setSimilaritySettings(switchedKPsettings);
-    
-    simConfigs = new LinkedList<String[]>();
-    simConfigs.add(new String[] { "UnnormalizedKeyphrasesBasedMISimilarity", "KeyphrasesContext", "0.971742997195044" });
-    simConfigs.add(new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "0.028257002804955994" });
-    SimilaritySettings unnormalizedKPsettings = new SimilaritySettings(simConfigs, null, 0.0, minMaxs);
+        
+    SimilaritySettings unnormalizedKPsettings = new SimilaritySettings(
+        CocktailPartyDisambiguationSettings.coherenceRobustnessSimConfigs, null, 0.0);
     switchedKPsettings.setIdentifier("CoherenceRobustnessTest");
     setCoherenceSimilaritySetting(unnormalizedKPsettings);
   }

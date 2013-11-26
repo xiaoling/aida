@@ -28,6 +28,8 @@ public class DisambiguatorTest {
   
   public DisambiguatorTest() {
     AidaConfig.set("dataAccess", "testing");
+    AidaConfig.set(AidaConfig.CACHE_WORD_EXPANSIONS, "false");
+    AidaManager.init();
   }
   
   @Test
@@ -37,7 +39,8 @@ public class DisambiguatorTest {
     String docId = "testPageKashmir1";
     String content = "When [[Page]] played Kashmir at Knebworth, his Les Paul was uniquely tuned.";
     PreparationSettings prepSettings = new PreparationSettings();
-    prepSettings.setMentionsFilter(FilterType.Hybrid);
+    prepSettings.setMentionsFilter(FilterType.STANFORD_NER);
+    prepSettings.setUseHybridMentionDetection(true);
 
     PreparedInput preparedInput = p.prepare(docId, content, new PreparationSettings());
 
@@ -62,7 +65,7 @@ public class DisambiguatorTest {
     assertEquals("Knebworth_Festival", mapped);
 
     mapped = mappings.get("Les Paul");
-    assertEquals(Entity.NO_MATCHING_ENTITY, mapped);
+    assertEquals(Entity.OOKBE, mapped);
   }
   
   @Test
@@ -72,7 +75,8 @@ public class DisambiguatorTest {
     String docId = "testPageKashmir2";
     String content = "When [[Page]] played Kashmir at Knebworth, his Les Paul was uniquely tuned.";
     PreparationSettings prepSettings = new PreparationSettings();
-    prepSettings.setMentionsFilter(FilterType.Hybrid);
+    prepSettings.setMentionsFilter(FilterType.STANFORD_NER);
+    prepSettings.setUseHybridMentionDetection(true);
 
     PreparedInput preparedInput = p.prepare(docId, content, new PreparationSettings());
 
@@ -89,16 +93,16 @@ public class DisambiguatorTest {
     Map<String, String> mappings = repackageMappings(results);
 
     String mapped = mappings.get("Page");
-    assertEquals(Entity.NO_MATCHING_ENTITY, mapped);
+    assertEquals(Entity.OOKBE, mapped);
 
     mapped = mappings.get("Kashmir");
-    assertEquals(Entity.NO_MATCHING_ENTITY, mapped);
+    assertEquals(Entity.OOKBE, mapped);
 
     mapped = mappings.get("Knebworth");
-    assertEquals(Entity.NO_MATCHING_ENTITY, mapped);
+    assertEquals(Entity.OOKBE, mapped);
 
     mapped = mappings.get("Les Paul");
-    assertEquals(Entity.NO_MATCHING_ENTITY, mapped);
+    assertEquals(Entity.OOKBE, mapped);
   }
   
   @Test
@@ -108,7 +112,8 @@ public class DisambiguatorTest {
     String docId = "testPageKashmir3";
     String content = "When [[Page]] played Kashmir at Knebworth, his Les Paul was uniquely tuned.";
     PreparationSettings prepSettings = new PreparationSettings();
-    prepSettings.setMentionsFilter(FilterType.Hybrid);
+    prepSettings.setMentionsFilter(FilterType.STANFORD_NER);
+    prepSettings.setUseHybridMentionDetection(true);
 
     PreparedInput preparedInput = p.prepare(docId, content, new PreparationSettings());
 
@@ -131,10 +136,10 @@ public class DisambiguatorTest {
     assertEquals("Kashmir_(song)", mapped);
 
     mapped = mappings.get("Knebworth");
-    assertEquals(Entity.NO_MATCHING_ENTITY, mapped);
+    assertEquals(Entity.OOKBE, mapped);
 
     mapped = mappings.get("Les Paul");
-    assertEquals(Entity.NO_MATCHING_ENTITY, mapped);
+    assertEquals(Entity.OOKBE, mapped);
   }
 
   private Map<String, String> repackageMappings(DisambiguationResults results) {

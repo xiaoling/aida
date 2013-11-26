@@ -2,6 +2,8 @@ package mpi.aida.config.settings;
 
 import java.io.Serializable;
 
+import mpi.aida.config.AidaConfig;
+import mpi.aida.data.Type;
 import mpi.aida.preparation.mentionrecognition.FilterMentions.FilterType;
 
 /**
@@ -12,14 +14,23 @@ public class PreparationSettings implements Serializable {
 
   private static final long serialVersionUID = -2825720730925914648L;
 
-  private FilterType mentionsFilter = FilterType.Hybrid;
-
-  private String[] filteringTypes = null;
+  private FilterType mentionsFilter = FilterType.STANFORD_NER;
   
-  private LANGUAGE language = LANGUAGE.ENGLISH;
+  private boolean useHybridMentionDetection = true;
+  
+  /** 
+   * Minimum number of mention occurrence to be considered in disambiguation.
+   * Default is to consider all mentions.
+   */
+  private int minMentionOccurrenceCount = 1;
+
+  private Type[] filteringTypes = AidaConfig.getFilteringTypes();
+  
+  //default to the language in AIDA configuration
+  private LANGUAGE language = AidaConfig.getLanguage();
   
   public static enum LANGUAGE {
-    ENGLISH, GERMAN
+    en, de
   }
 
   public FilterType getMentionsFilter() {
@@ -30,11 +41,11 @@ public class PreparationSettings implements Serializable {
     this.mentionsFilter = mentionsFilter;
   }
 
-  public String[] getFilteringTypes() {
+  public Type[] getFilteringTypes() {
     return filteringTypes;
   }
 
-  public void setFilteringTypes(String[] filteringTypes) {
+  public void setFilteringTypes(Type[] filteringTypes) {
     this.filteringTypes = filteringTypes;
   }
   
@@ -44,5 +55,21 @@ public class PreparationSettings implements Serializable {
   
   public void setLanguage(LANGUAGE language) {
     this.language = language;
+  }
+  
+  public boolean isUseHybridMentionDetection() {
+    return useHybridMentionDetection;
+  }
+  
+  public void setUseHybridMentionDetection(boolean useHybridMentionDetection) {
+    this.useHybridMentionDetection = useHybridMentionDetection;
+  }
+
+  public int getMinMentionOccurrenceCount() {
+    return minMentionOccurrenceCount;
+  }
+
+  public void setMinMentionOccurrenceCount(int minMentionOccurrenceCount) {
+    this.minMentionOccurrenceCount = minMentionOccurrenceCount;
   }
 }

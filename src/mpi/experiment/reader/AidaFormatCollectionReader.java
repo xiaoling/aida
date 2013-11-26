@@ -8,9 +8,13 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
-import javatools.util.FileUtils;
+import mpi.tools.javatools.util.FileUtils;
+import mpi.aida.access.DataAccess;
 import mpi.aida.data.Context;
+import mpi.aida.data.Entities;
+import mpi.aida.data.Entity;
 import mpi.aida.data.Mention;
 import mpi.aida.data.Mentions;
 import mpi.aida.data.PreparedInput;
@@ -35,27 +39,31 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
   private HashMap<String, Mentions> mentionsMap = null;
 
   public AidaFormatCollectionReader(String collectionPath, String fileName) {
-    this(collectionPath, fileName, 0, Integer.MAX_VALUE);
+    this(collectionPath, fileName, 0, Integer.MAX_VALUE, new CollectionReaderSettings());
   }
-
-  public AidaFormatCollectionReader(String collectionPath, String fileName, int from, int to) {
-    super(collectionPath, from, to);
+  
+  public AidaFormatCollectionReader(String collectionPath, String fileName, CollectionReaderSettings settings) {
+    this(collectionPath, fileName, 0, Integer.MAX_VALUE, settings);
+  }
+  
+  public AidaFormatCollectionReader(String collectionPath, String fileName, int from, int to, CollectionReaderSettings settings) {
+    super(collectionPath, from, to, settings);
     this.filePath = collectionPath + fileName;
     allDocIds = new LinkedList<String>();
     initFile();
     initPreparedInputs();
   }
 
-  public AidaFormatCollectionReader(String collectionPath, String fileName, CollectionPart cp) {
-    super(collectionPath, cp);
+  public AidaFormatCollectionReader(String collectionPath, String fileName, CollectionPart cp, CollectionReaderSettings settings) {
+    super(collectionPath, cp, settings);
     this.filePath = collectionPath + fileName;
     allDocIds = new LinkedList<String>();
     initFile();
     initPreparedInputs();
   }
 
-  public AidaFormatCollectionReader(String collectionPath, String fileName, String docNums) {
-    super(collectionPath, docNums);
+  public AidaFormatCollectionReader(String collectionPath, String fileName, String docNums, CollectionReaderSettings settings) {
+    super(collectionPath, docNums, settings);
     this.filePath = collectionPath + fileName;
     allDocIds = new LinkedList<String>();
     initFile();
@@ -100,7 +108,7 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
     }
     preparedInputs = new ArrayList<PreparedInput>(experimentDocIds.size());
     for (String docId : experimentDocIds) {
-      preparedInputs.add(new PreparedInput(docId, tokensMap.get(docId), mentionsMap.get(docId)));
+      preparedInputs.add(new PreparedInput(docId, tokensMap.get(docId), getDocumentMentions(docId)));
     }
   }
 
@@ -181,6 +189,13 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
             textMention = data[2];
             entity = data[3];
             ner = data[4];
+          } else if (data.length == 7) {
+            // The public AIDA dataset release has 7 columns, however 
+            // the additional IDs are not necessary
+            word = data[0];
+            mentionStart = "B".equals(data[1]);
+            textMention = data[2];
+            entity = data[3];
           } else {
             logger.warn("line has wrong format " + line + " for docId " + tokens.getDocId());
           }
@@ -283,7 +298,7 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
 
   @Override
   public Mentions getDocumentMentions(String docId) {
-    return getDocumentMentions(docId, includeNMEMentions);
+    return getDocumentMentions(docId, settings.isIncludeNMEMentions(), settings.isIncludeOutOfDictionaryMentions());
   }
 
   public String getText(String docId) {
@@ -302,19 +317,33 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
     return tokensMap;
   }
 
-  public Mentions getDocumentMentions(String docId, boolean includeEmptyMentions) {
-    if (includeEmptyMentions) {
-      return mentionsMap.get(docId);
-    } else {
-      Mentions ms = mentionsMap.get(docId);
-      Mentions nonEmptyMentions = new Mentions();
-      for (Mention m : ms.getMentions()) {
-        if (!m.getGroundTruthResult().equals("--NME--")) {
-          nonEmptyMentions.addMention(m);
+  public Mentions getDocumentMentions(
+      String docId, boolean includeEmptyMentions, 
+      boolean includeOutOfDictionaryMentions) {
+    // Default is to return the original mentions present in the file.
+    Mentions mentions = mentionsMap.get(docId);
+    if (!includeEmptyMentions) {
+      Mentions mentionsToInclude = new Mentions();
+      for (Mention m : mentions.getMentions()) {
+        if (!m.getGroundTruthResult().equals(Entity.OOKBE)) {
+          mentionsToInclude.addMention(m);
         }
       }
-      return nonEmptyMentions;
+      mentions = mentionsToInclude;
     }
+    if (!includeOutOfDictionaryMentions) {
+      Map<String, Entities> candidates = 
+          DataAccess.getEntitiesForMentions(mentions.getMentionNames(), 1.0);
+      Mentions mentionsToInclude = new Mentions();
+      for (Mention m : mentions.getMentions()) {
+        Entities cands = candidates.get(m.getMention());
+        if (!cands.isEmpty()) {
+          mentionsToInclude.addMention(m);
+        }
+      }
+      mentions = mentionsToInclude;
+    }
+    return mentions;
   }
 
   @Override

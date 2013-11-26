@@ -11,7 +11,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import javatools.parsers.Char;
+import mpi.tools.javatools.parsers.Char;
 import mpi.aida.data.Mention;
 import mpi.experiment.trace.data.EntityTracer;
 import mpi.experiment.trace.data.MentionTracer;

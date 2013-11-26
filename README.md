@@ -1,41 +1,56 @@
 # AIDA - Accurate Online Disambiguation of Entities
 
-[AIDA][AIDA] is the named entity disambiguation system created by the Databases and Information Systems Department at the [Max Planck Institute for Informatics in Saarbücken, Germany][MPID5]. It identifies mentions of named entities (persons, organizations, locations, songs, products, ...) in English language text and links them to a unique identifier. Most names are ambiguous, especially family names, and AIDA resolves this ambiguity. See the EMNLP 2011 publication [EMNLP2011] for a detailed description of how it works and the VLDB 2011 publication [VLDB2011] for a description of our Web demo.
+[AIDA][AIDA] is the named entity disambiguation system created by the Databases and Information Systems Department at the [Max Planck Institute for Informatics in Saarbücken, Germany][MPID5]. It identifies mentions of named entities (persons, organizations, locations, songs, products, ...) in English language text and links them to a unique identifier. Most names are ambiguous, especially family names, and AIDA resolves this ambiguity. See the EMNLP 2011 publication [EMNLP2011] for a detailed description of how it works and the VLDB 2011 publication [VLDB2011] for a description of our Web demo. Read on for a more in-depth introduction and hands-on examples of how to use AIDA.
 
 If you want to be notified about AIDA news or new releases, subscribe to our announcement mailing list by sending a mail to:
 
-    aida-news-subscribe@lists.mpi-inf.mpg.de
+> aida-news-subscribe@lists.mpi-inf.mpg.de
 
-## Introduction to AIDA
+## AIDA Overview
 
-AIDA is a framework and online tool for entity detection and disambiguation. Given a natural-language text, it maps mentions of ambiguous names onto canonical entities (e.g., individual people or places) registered in the [YAGO2][YAGO] [YAGO2] knowledge base. This knowledge is useful for multiple tasks, for example:
+AIDA is a framework and online tool for entity detection and disambiguation. Given a natural-language text, it maps mentions of ambiguous names onto canonical entities (e.g., individual people or places) registered in the Wikipedia-derived [YAGO2][YAGO] [YAGO2] knowledge base. 
+
+Take the example sentence below:
+
+> When Page played Kashmir at Knebworth, his Les Paul was uniquely tuned.
+
+Aida will first spot all the names: "Page", "Kashmir", "Knebworth", and "Les Paul".
+
+These ambiguous names are resolved by identifying the entity each name means. In the example, "Page" is Jimmy Page of Led Zeppelin fame, "Kashmir" means the song, not the region bordering India, China, and Pakistan. "Knebworth" refers to the festival, not the city, and finally "Les Paul" refers to the famous guitar, not its designer.
+
+The output will be YAGO2 identifiers and Wikipedia URLs describing all these entities:
+
+* "Page": http://en.wikipedia.org/wiki/Jimmy_Page
+* "Kashmir": http://en.wikipedia.org/wiki/Kashmir_(song)
+* "Knebworth": http://en.wikipedia.org/wiki/Knebworth_Festival_1979
+* "Les Paul": http://en.wikipedia.org/wiki/Gibson_Les_Paul 
+
+This knowledge is useful for multiple tasks, for example:
 
 * Build an entity index. This allows one kind of semantic search, retrieve all documents where a given entity was mentioned.
 * Extract knowledge about the entities, for example relations between entities mention in the text.
-
-YAGO2 entities have a one-to-one correspondence to Wikipedia pages, thus each disambiguated entity also denotes a Wikipedia URL.
 
 Note that AIDA does not annotate common words (like song, musician, idea, ... ). Also, AIDA does not identify mentions that have no entity in the repository. Once a name is in the dictionary containing all candidates for surface strings, AIDA will map to the best possible candidate, even if the correct one is not in the entity repository
 
 ## Requirements
 
-AIDA was written in Java, and requires Java 6. AIDA also needs a [Postgres][Postgres] database to run. We tested it starting from version 8.4, but version 9.2 will give a better performance for many queries AIDA runs, due to the ability to fetch data from the indexes.
-
-The machine AIDA runs on should have a reasonable amount of main memory. If you are using graph coherence (see the Section *Configuring AIDA*), the amount of memory grows quadratically with the number of entities and thus the length of the document. Anything above 10,000 candidates will be too much for a regular desktop machine (at the time of writing) to handle and should run on a machine with more than 20GB of main memory. AIDA does the most intensive computations in parallel and thus benefits from multi-core machine.
+ * Java 6
+ * A [Postgres][Postgres] database to run. We tested it starting from version 8.4, but version 9.2 will give a better performance for many queries AIDA runs, due to the ability to fetch data from the indexes.
+ * The machine AIDA runs on should have a reasonable amount of main memory. If you are using graph coherence (see the Section *Configuring AIDA*), the amount of memory grows quadratically with the number of entities and thus the length of the document. Anything above 10,000 candidates will be too much for a regular desktop machine (at the time of writing) to handle and should run on a machine with more than 20GB of main memory. AIDA does the most intensive computations in parallel and thus benefits from multi-core machine.
 
 ## Setting up the Entity Repository
 
-AIDA was developed to disambiguate to the [YAGO2][YAGO] knowledge base, returning the YAGO2 identifier for disambiguated entities. However, you can use AIDA for any entity repository, given that you have keyphrases and weights for all entities. The more common case is to use AIDA with YAGO2. If you want to set it up with your own repository, see the Advanced Configuration section.
+AIDA was developed to disambiguate to the [YAGO2][YAGO] knowledge base, returning the YAGO2 identifier for disambiguated entities, which can in turn be transformed directly to Wikipedia URLs. However, you can use AIDA for any entity repository, given that you have keyphrases and weights for all entities. The more common case is to use AIDA with YAGO2. If you want to set it up with your own repository, see the Advanced Configuration section.
 
 To use AIDA with YAGO2, download the repository we provide on our [AIDA website][AIDA] as a Postgres dump and import it into your database server. This will take some time, maybe even a day depending on the speed of the machine Postgres is running on. Once the import is done, you can start using AIDA immediately by adjusting the `settings/database_aida.properties` to point to the database. AIDA will then use nearly 3 million named entities harvested from Wikipedia for disambiguation.
 
-Get the Entity Repository (24 GB):
+Get the Entity Repository (21 GB):
 
-    curl -O http://www.mpi-inf.mpg.de/yago-naga/aida/download/entity-repository/AIDA_entity_repository_2010-08-17v4.sql.bz2
+    curl -O http://www.mpi-inf.mpg.de/yago-naga/aida/download/entity-repository/AIDA_entity_repository_2010-08-17v5.sql.bz2
     
 Import it into a postgres database:
 
-    bzcat AIDA_entity_repository_2010-08-17v4.sql.bz2 | psql <DATABASE>
+    bzcat AIDA_entity_repository_2010-08-17v5.sql.bz2 | psql <DATABASE>
     
 where <DATABASE> is a database on a PostgreSQL server.
 
@@ -43,14 +58,18 @@ A database dump on a more recent version of Wikipedia is also available: http://
 
 ## Setting up AIDA
 
-To build aida, run `ant` (See [Apache Ant](http://ant.apache.org)) in the directory of the cloned repository. This will create an aida.jar including all dependencies.
+To build aida, run `mvn package` (see [Maven](http://maven.apache.org)) in the directory of the cloned repository. This will create an aida-VERSION.jar including all dependencies in the `target` subdirectory.
 
 The main configuration is done in the files in the `settings/` directory. The following files can be adjusted:
 
 * `aida.properties`: take the `sample_settings/aida.properties` and adjust it accordingly. The default values are reasonable, so if you don't want to change anything, the file is not needed at all.
 * `database_aida.properties`: take the `sample_settings/database_aida.properties`, put it here and adjust it accordingly. The settings should point to the Postgres database server that holds the entity repository - how to set this up is explained below.
 
+After changing these settings, run `mvn package` again to update the jar with the current settings.
+
 ## Hands-On API Example
+
+If you want to use AIDA in a maven project, add mpi.aida:aida-2.0 as dependency. Otherwise, build the jar using `mvn package` and add `target/aida-VERSION.jar` to your project's classpath.  
 
 The main classes in AIDA are `mpi.aida.Preparator` for preparing an input document and `mpi.aida.Disambiguator` for running the disambiguation on the prepared input.
 
@@ -90,11 +109,11 @@ See the `mpi.aida.config.settings.disambiguation` package for all possible prede
 
 1. Build AIDA:
 
-    `ant`
+    `mvn package`
     
 1. Run the CommandLineDisambiguator:
 
-    `java -Xmx4G -cp aida.jar mpi.aida.CommandLineDisambiguator GRAPH <INPUT-FILE>`
+    `java -Xmx4G -cp target/aida-2.0-jar-with-dependencies.jar mpi.aida.CommandLineDisambiguator -t GRAPH -i <INPUT-FILE>`
 
 `<INPUT-FILE>` is path to the text file to be annotated with entities. The format for `<INPUT-FILE>` should be plain text with UTF-8 encoding.
 
@@ -106,6 +125,14 @@ Instead of `GRAPH`, you can put one of the following, corresponding to the setti
 * `GRAPH-KORE`: CocktailPartyKOREDisambiguationSettings
 
 The output will be an HTML file with annotated mentions, linking to the corresponding Wikipedia page. It also contains the IDs of the entities in the entity repository used.
+
+## Hands-On AIDA Web Service Example
+
+Start the AIDA web service with
+
+`mvn jetty:run`
+
+This will expose the RESTful API. We will provide additional documentation about how to use this soon.
 
 ## Input Format
 
@@ -165,10 +192,10 @@ The edge weights of the disambiguation graph are configured in the `similaritySe
 
 Take our default configuration as example (in File syntax):
 
-    mentionEntitySimilarities = UnnormalizedKeyphrasesBasedMISimilarity:KeyphrasesContext:1.4616111666431395E-5 UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext:4.291375037765039E-5 UnnormalizedKeyphrasesBasedMISimilarity:KeyphrasesContext:0.15586170799823845 UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext:0.645200419577534
-    priorWeight = 0.19888034256218348
-    priorThreshold = 0.9
-    entityEntitySimilarity = MilneWittenEntityEntitySimilarity:1.0
+> mentionEntitySimilarities = UnnormalizedKeyphrasesBasedMISimilarity:KeyphrasesContext:2.23198783427544E-6 UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext:2.6026462624132183E-4 UnnormalizedKeyphrasesBasedMISimilarity:KeyphrasesContext:0.0817134645946377 UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext:0.3220317242447891
+> priorWeight = 0.5959923145464976
+> priorThreshold = 0.9
+> entityEntitySimilarity = MilneWittenEntityEntitySimilarity:1.0
 
 It is possible to create a SimilaritySettings object programmatically, however we recommend using the preconfigured settings in the `mpi.aida.config.settings.disambiguation` package.
 
@@ -229,10 +256,10 @@ AIDA tries to match ALL_CAPS variants of mixed-case keywords. Put the ids of the
     
 This is the meat of AIDA. All entities are associated with (optionally weighted) keyphrases, represented by an integer id. As the keyphrases are matched partially against input text, the (weighted) _keyphrase\_tokens_ are stored alongside each keyphrase. The mandatory fields are:
 
-* entity: The id corresponds to the id in the _dictionary_ and the _entity\_ids_ table.
-* keyphrase: The id corresponds to the id in the _word\_ids_ table.
-* keyphrase_tokens: Each id in the array corresponds to one word in the _word\_ids_ table.
-* keyphrase_token_weights: Each entry in the double array is the entity-specific weight of the keyword at the same position as _keyphrase\_tokens_.
+* entity: The id corresponds to the id in the _dictionary_ and the _entity_ids_ table.
+* keyphrase: The id corresponds to the id in the _word_ids_ table.
+* keyphrase_tokens: Each id in the array corresponds to one word in the _word_ids_ table.
+* keyphrase_token_weights: Each entry in the double array is the entity-specific weight of the keyword at the same position as _keyphrase_tokens_.
 
 The optional fields are:
 
@@ -280,15 +307,16 @@ The AIDA developers are (in alphabetical order):
 * Edwin Lewis-Kelham
 * Dat Ba Nguyen ( http://www.mpi-inf.mpg.de/~datnb )
 * Stephan Seufert ( http://www.mpi-inf.mpg.de/~sseufert )
+* Vasanth Venkatraman ( http://www.mpi-inf.mpg.de/~vvenkatr )
 * Mohamed Amir Yosef ( http://www.mpi-inf.mpg.de/~mamir )
 
 ## License
 
 AIDA by Max-Planck-Institute for Informatics, Databases and Information Systems is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 
-## Included Software
+## Libraries Used
 
-We thank the authors of the following pieces of software, without which the development of AIDA would not have been possible. The included software is available under different licenses than the AIDA source code, namely:
+We thank the authors of the following pieces of software, without which the development of AIDA would not have been possible. The needed software is available under different licenses than the AIDA source code, namely:
 
 * Apache Commons, all licensed under Apache 2.0
 	* cli, collections, io, lang
@@ -305,6 +333,8 @@ We thank the authors of the following pieces of software, without which the deve
 		* xom, licensed under LGPL v2.1
 		* joda-time, licensed under Apache 2.0
 * Trove, licensed under the LGPL, parts under a license by CERN
+
+All libraries are included as dependencies by maven.
 	
 ### Licenses of included Software
 

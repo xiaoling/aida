@@ -15,23 +15,25 @@ import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
 import mpi.aida.data.EntityMetaData;
 import mpi.aida.data.Keyphrases;
+import mpi.aida.data.Type;
 import mpi.aida.util.YagoUtil.Gender;
 
 public interface DataAccessInterface {
 
   public DataAccess.type getAccessType();
 
-  public Entities getEntitiesForMention(String mention, double maxEntityRank);
-
+  public Map<String, Entities> getEntitiesForMentions(
+      Collection<String> mention, double maxEntityRank);
+  
   public int[] getInlinkNeighbors(Entity e);
 
   public TIntObjectHashMap<int[]> getInlinkNeighbors(Entities entities);
  
   public Map<String, Gender> getGenderForEntities(Entities entities);
 
-  public Map<String, List<String>> getTypes(Set<String> entities);
+  public Map<String, Set<Type>> getTypes(Set<String> entities);
 
-  public List<String> getTypes(String Entity);
+  public Set<Type> getTypes(String Entity);
 
   public TIntIntHashMap getKeyphraseDocumentFrequencies(TIntHashSet keyphrases);
 
@@ -40,6 +42,10 @@ public interface DataAccessInterface {
   public String getKeyphraseSource(String entityName, String keyphrase);
   
   public Map<String, List<String>> getKeyphraseEntities(Set<String> keyphrases);
+  
+  public Map<String, Double> getKeyphraseSourceWeights();
+  
+  public double getKeyphraseSourceWeights(String source);
 
   public Map<Entity, int[]> getEntityLSHSignatures(Entities entities);
 
@@ -52,7 +58,7 @@ public interface DataAccessInterface {
   public TIntDoubleHashMap getEntityPriors(String mention);
 
   public void getEntityKeyphraseTokens(
-      Entities entities, String keyphraseSourceExclusion,
+      Entities entities,
       TIntObjectHashMap<int[]> entityKeyphrases,
       TIntObjectHashMap<int[]> kpTokens);
 
@@ -81,10 +87,10 @@ public interface DataAccessInterface {
   public boolean isYagoEntity(Entity entity);
 
   public Keyphrases getEntityKeyphrases(Entities entities,
-      String keyphraseSourceExclusion);
+      Map<String, Double> keyphraseSourceWeights);
   
   public Keyphrases getEntityKeyphrases(
-      Entities entities, String keyphraseSourceExclusion,
+      Entities entities, Map<String, Double> keyphraseSourceWeights,
       double minKeyphraseWeight, int maxEntityKeyphraseCount);
 
   public TIntObjectHashMap<int[]> getAllInlinks();
@@ -95,7 +101,7 @@ public interface DataAccessInterface {
 
   public int getWordExpansion(int wordId);
 
-  public TIntObjectHashMap<String> getTypeNamesForIds(int[] ids);
+  public TIntObjectHashMap<Type> getTypeNamesForIds(int[] ids);
 
   public TObjectIntHashMap<String> getIdsForTypeNames(Collection<String> typeNames);
   
@@ -105,6 +111,8 @@ public interface DataAccessInterface {
   
   public TIntObjectHashMap<int[]> getTypesIdsForEntities(Entities entities);
 
+  public Map<String, List<String>> getAllEntitiesMetaData(String startingWith);
+  
   public Map<String, EntityMetaData> getEntitiesMetaData(Set<String> entities);
 
   public EntityMetaData getEntityMetaData(String entity);
@@ -120,4 +128,6 @@ public interface DataAccessInterface {
   public TIntDoubleHashMap getEntitiesImportances(int[] entitiesIds);
 
   public double getEntityImportance(int entityId);  
+  
+  public String getConfigurationName();
  }

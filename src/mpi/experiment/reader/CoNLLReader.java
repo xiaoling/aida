@@ -11,26 +11,37 @@ public class CoNLLReader extends AidaFormatCollectionReader {
   public CoNLLReader() {
     super(finalCollectionPath, finalFileName);
   }
-
-  public CoNLLReader(CollectionPart cp) {
-	    super(finalCollectionPath, finalFileName, cp);
-  }
-
-
+  
   public CoNLLReader(String collectionPath) {
     super(collectionPath, finalFileName);
   }
-
-  public CoNLLReader(String collectionPath, int from, int to) {
-    super(collectionPath, finalFileName, from, to);
+  
+  public CoNLLReader(CollectionPart cp) {
+    super(finalCollectionPath, finalFileName, cp, new CollectionReaderSettings());
   }
-
+  
   public CoNLLReader(String collectionPath, CollectionPart cp) {
-    super(collectionPath, finalFileName, cp);
+    super(collectionPath, finalFileName, cp, new CollectionReaderSettings());
+  }
+  
+  public CoNLLReader(CollectionPart cp, CollectionReaderSettings settings) {
+    super(finalCollectionPath, finalFileName, cp, settings);
+  }
+  
+  public CoNLLReader(String collectionPath, int from, int to) {
+    this(collectionPath, from, to, new CollectionReaderSettings());
   }
 
-  public CoNLLReader(String collectionPath, String docNums) {
-    super(collectionPath, finalFileName, docNums);
+  public CoNLLReader(String collectionPath, int from, int to, CollectionReaderSettings settings) {
+    super(collectionPath, finalFileName, from, to, settings);
+  }
+
+  public CoNLLReader(String collectionPath, CollectionPart cp, CollectionReaderSettings settings) {
+    super(collectionPath, finalFileName, cp, settings);
+  }
+
+  public CoNLLReader(String collectionPath, String docNums, CollectionReaderSettings settings) {
+    super(collectionPath, finalFileName, docNums, settings);
   }
 
   @Override
@@ -53,12 +64,5 @@ public class CoNLLReader extends AidaFormatCollectionReader {
         break;
     }
     return ft;
-  }
-
-  
-  public static void main(String[] args) {
-    CoNLLReader reader = new CoNLLReader();
-    String key = reader.getAllDocIds().get(0);
-    System.out.println(reader.getTokensMap().get(key));
   }
 }

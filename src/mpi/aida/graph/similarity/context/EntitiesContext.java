@@ -12,7 +12,7 @@ import mpi.tokenizer.data.Tokens;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import basics.Normalize;
+import mpi.tools.basics.Normalize;
 
 public abstract class EntitiesContext {
   private static final Logger logger = 

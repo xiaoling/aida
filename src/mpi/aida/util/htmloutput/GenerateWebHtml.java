@@ -9,12 +9,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javatools.parsers.Char;
+import mpi.tools.javatools.parsers.Char;
 import mpi.aida.access.DataAccess;
 import mpi.aida.data.DisambiguationResults;
 import mpi.aida.data.PreparedInput;
 import mpi.aida.data.ResultEntity;
 import mpi.aida.data.ResultMention;
+import mpi.aida.data.AidaRESTJsonResults;
+import mpi.aida.data.Type;
 import mpi.aida.util.Result;
 import mpi.tokenizer.data.Token;
 import mpi.tokenizer.data.Tokens;
@@ -23,8 +25,8 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import basics.Basics;
-import basics.Normalize;
+import mpi.tools.basics.Basics;
+import mpi.tools.basics.Normalize;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -61,10 +63,10 @@ public class GenerateWebHtml {
       mpi.aida.util.htmloutput.ResultMention rMention = 
           new mpi.aida.util.htmloutput.ResultMention(
               "html", charOffset, charLength, 
-              mentionString, entityName, confidence, true);
+              mentionString, entityName, confidence);
       result.addFinalentity(rMention);
     }
-    Map<String, List<String>> entitiesTypes;
+    Map<String, Set<Type>> entitiesTypes;
     if(generateTypeInformation) {
     	entitiesTypes = loadEntitiesTypes(results);
     } else {
@@ -73,6 +75,7 @@ public class GenerateWebHtml {
     return toHtml(result, entitiesTypes);
   }
 
+  
   /**
    * Similar to process() method, but accepts JSON instead of DisambiguationResults object reference.
    * 
@@ -83,6 +86,7 @@ public class GenerateWebHtml {
    * @return  HTML version of result.
    * @throws Exception
    */
+  @Deprecated
   public String processJSON(String text, PreparedInput input, String jsonRepr, boolean generateTypeInformation) throws Exception {
     if (jsonRepr == null || jsonRepr.equals("")) {
       return "<div></div>";
@@ -92,24 +96,57 @@ public class GenerateWebHtml {
     JSONObject temp = (JSONObject)jParser.parse(jsonRepr);
     JSONArray tmpJsonArr = (JSONArray)temp.get("mentions");
     Iterator it = tmpJsonArr.iterator();
-    Map<String, List<String>> entitiesTypes = new HashMap<String, List<String>>();
+    Map<String, Set<Type>> entitiesTypes = new HashMap<String, Set<Type>>();
     while(it.hasNext()){
       JSONObject mention = (JSONObject)it.next();
       
       JSONObject entity = (JSONObject)mention.get("bestEntity");
-      List<String> entityTypes = new ArrayList<String>();
-      entityTypes.add(Basics.ENTITY);
+      Set<Type> entityTypes = new HashSet<Type>();
+      entityTypes.add(new Type("", Basics.ENTITY));
       entitiesTypes.put((String)entity.get("name"), entityTypes);
       mpi.aida.util.htmloutput.ResultMention rMention = 
         new mpi.aida.util.htmloutput.ResultMention(
             "html", ((Long)mention.get("offset")).intValue(), ((Long)mention.get("length")).intValue(), 
-            (String)mention.get("name"), (String)entity.get("name"), Double.parseDouble((String)entity.get("disambiguationScore")), true);
+            (String)mention.get("name"), (String)entity.get("name"), Double.parseDouble((String)entity.get("disambiguationScore")));
       result.addFinalentity(rMention);
     }
     return toHtml(result, entitiesTypes);
   }
+ 
+  /**
+   * Similar to process() method, but accepts JSONResults object instead of DisambiguationResults object reference.
+   * 
+   * @param text
+   * @param input
+   * @param jsonResult object
+   * @param generateTypeInformation
+   * @return  HTML version of result.
+   * @throws Exception
+   */
+  public String processJsonResults(String text, PreparedInput input, AidaRESTJsonResults jResults, boolean generateTypeInformation) throws Exception {
+	    if (jResults == null || jResults.getJsonString().equals("")) {
+	      return "<div></div>";
+	    }
+	    Result result = new Result(input.getDocId(), text, input.getTokens(), "html");
+	    Map<String, Set<Type>> entitiesTypes;
+	    if(generateTypeInformation){
+	    	entitiesTypes = jResults.getEntitiesTypes();
+	    }else{
+	    	entitiesTypes = new HashMap<String, Set<Type>>();
+	    	for(ResultEntity re: jResults.getBestEntities()){
+	    	  Set<Type> entityTypes = new HashSet<Type>();
+	    	  entityTypes.add(new Type("",Basics.ENTITY));
+	    	  entitiesTypes.put(re.getEntity(), entityTypes);
+	    	}
+	    }
+	    
+	    for(mpi.aida.util.htmloutput.ResultMention rm : jResults.getResultMentions()){
+	    	result.addFinalentity(rm);
+	    }
+	    return toHtml(result, entitiesTypes);
+	  }
   
-  private Map<String, List<String>> loadEntitiesTypes(DisambiguationResults results) {
+  private Map<String, Set<Type>> loadEntitiesTypes(DisambiguationResults results) {
     Set<String> entities = new HashSet<String>();
     DisambiguationResults disResults = results;
     for (ResultMention rm : disResults.getResultMentions()) {
@@ -122,26 +159,26 @@ public class GenerateWebHtml {
       return DataAccess.getTypes(entities);
     }
     else {
-      return new HashMap<String, List<String>>();
+      return new HashMap<String, Set<Type>>();
     }
   }
 
-	private Map<String, List<String>> assignGenericType(
+	private Map<String, Set<Type>> assignGenericType(
 			DisambiguationResults results) {
 		DisambiguationResults disResults = results;
-		Map<String, List<String>> entitiesTypes = new HashMap<String, List<String>>();
+		Map<String, Set<Type>> entitiesTypes = new HashMap<String, Set<Type>>();
 		for (ResultMention rm : disResults.getResultMentions()) {
 			ResultEntity re = disResults.getBestEntity(rm);
-			List<String> entityTypes = new ArrayList<String>();
-			entityTypes.add(Basics.ENTITY);
+			Set<Type> entityTypes = new HashSet<Type>();
+			entityTypes.add(new Type("",Basics.ENTITY));
 			entitiesTypes.put(re.getEntity(), entityTypes);
 		}
 		
 		return entitiesTypes;
 	}
   
-  private String toHtml(Result result, Map<String, List<String>> entitiesTypes) {
-    Map<String, List<String>> htmlSpanIdTypesMapping = new HashMap<String, List<String>>();
+  private String toHtml(Result result, Map<String, Set<Type>> entitiesTypes) {
+    Map<String, Set<String>> htmlSpanIdTypesMapping = new HashMap<String, Set<String>>();
     logger.debug("Doing:" + result.getDocId());
     setTokens(result);
     Tokens tokens = result.getTokens();
@@ -175,7 +212,7 @@ public class GenerateWebHtml {
         }
         html.append("]</small>");
         String htmlSpanId = (mention.getMention() + "_" + from).replaceAll("[^a-zA-Z0-9]", "_");
-        List<String> types = fixTypesName(entitiesTypes.get(mention.getEntity()));
+        Set<String> types = fixTypesName(entitiesTypes.get(mention.getEntity()));
         updateTypesCounts(types);
         htmlSpanIdTypesMapping.put(htmlSpanId, types);
         html.append("<span class='eq' id='" + htmlSpanId + "' title='" + StringUtils.join(types, " | ") + "'>");
@@ -196,10 +233,10 @@ public class GenerateWebHtml {
     return html.toString();
   }
 
-  private String getJSONObjects(Map<String, List<String>> htmlSpanIdTypesMapping) {
+  private String getJSONObjects(Map<String, Set<String>> htmlSpanIdTypesMapping) {
 
     Set<String> types = new HashSet<String>();
-    for (List<String> typeSublist : htmlSpanIdTypesMapping.values()) {
+    for (Set<String> typeSublist : htmlSpanIdTypesMapping.values()) {
       for (String type : typeSublist) {
         types.add(type);
       }
@@ -260,12 +297,11 @@ public class GenerateWebHtml {
     }
   }
 
-  private List<String> fixTypesName(List<String> types) {
-    List<String> fixedTypes = new ArrayList<String>();
+  private Set<String> fixTypesName(Set<Type> types) {
+    Set<String> fixedTypes = new HashSet<String>();
     if (types == null) return fixedTypes;
-    for (int i = 0; i < types.size(); i++) {
-      String type = types.get(i);
-      String fixedType = Normalize.unNormalize(type);
+    for (Type type : types) {
+      String fixedType = Normalize.unNormalize(type.getName());
       /*
       
       int start = type.indexOf("_") + 1;
@@ -281,7 +317,7 @@ public class GenerateWebHtml {
     return fixedTypes;
   }
 
-  private void updateTypesCounts(List<String> types) {
+  private void updateTypesCounts(Set<String> types) {
     Set<String> uniqueTypes = new HashSet<String>();
     for (String type : types) {
       uniqueTypes.add(type);

@@ -1,8 +1,10 @@
 package mpi.experiment.trace.measures;
 
+import gnu.trove.iterator.TObjectIntIterator;
 import gnu.trove.list.linked.TIntLinkedList;
 import gnu.trove.map.hash.TIntDoubleHashMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
+import gnu.trove.map.hash.TObjectIntHashMap;
 
 import java.text.DecimalFormat;
 import java.util.Collections;
@@ -11,18 +13,47 @@ import java.util.List;
 
 import mpi.aida.access.DataAccess;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class KeyphrasesMeasureTracer extends MeasureTracer {
+  private static Logger sLogger_ = LoggerFactory.getLogger(KeyphrasesMeasureTracer.class);
+  
 	public static int countForUI = 0;
+	
+	private static TIntObjectHashMap<String> id2word = 
+	    new TIntObjectHashMap<String>();
 
 	private List<keyphraseTracingObject> keyphrases = null;
 	private DecimalFormat formatter = new DecimalFormat("#0.00000");
 	
 	public KeyphrasesMeasureTracer(String name, double weight) {
 		super(name, weight);
+    if (weight < 0.0) {
+      sLogger_.error("Weight should not be < 0");
+    }
+		synchronized (id2word) {
+		  if (id2word.size() == 0) {
+		    sLogger_.debug("Reading all word ids for tracing.");
+		    id2word = getAllWordIds();
+		    sLogger_.debug("Reading all word ids for tracing done.");
+		  }
+    }
 		keyphrases = new LinkedList<KeyphrasesMeasureTracer.keyphraseTracingObject>();
 	}
+	
+  public static TIntObjectHashMap<String> getAllWordIds() {
+    TObjectIntHashMap<String> wordIds = DataAccess.getAllWordIds();
+    TIntObjectHashMap<String> idWords = 
+        new TIntObjectHashMap<String>(wordIds.size());
+    for (TObjectIntIterator<String> itr = wordIds.iterator(); itr.hasNext(); ) {
+      itr.advance();
+      idWords.put(itr.value(), itr.key());
+    }    
+    return idWords;
+  }
 
-	@Override
+  @Override
 	public String getOutput() {
 		Collections.sort(keyphrases);
 				
@@ -31,12 +62,9 @@ public class KeyphrasesMeasureTracer extends MeasureTracer {
 		  for (int keyword : kto.keyphraseTokens) {
 		    wordIds.add(keyword);
 		  }
-		}
-		TIntObjectHashMap<String> id2word = 
-		    DataAccess.getWordsForIds(wordIds.toArray());
-		
+		}		
 		StringBuilder sb = new StringBuilder();
-		sb.append("<strong style='color: #0000FF;'> score = " + formatter.format(score) + " </strong><br />");
+		sb.append("<strong style='color: #0000FF;'> score = " + formatter.format(score) + " for " + keyphrases.size() + " keyphrases</strong><br />");
 		int keyphraseCount = 0;
 		for(keyphraseTracingObject keyphrase : keyphrases) {
 			if(keyphraseCount == 5) {

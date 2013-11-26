@@ -37,4 +37,8 @@ public abstract class EntityImportance {
   public void setWeight(double weight) {
     this.weight = weight;
   }
+  
+  public String getIdentifier() {
+    return this.getClass().getSimpleName();
+  }
 }

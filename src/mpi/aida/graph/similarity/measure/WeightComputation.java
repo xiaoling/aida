@@ -14,6 +14,38 @@ public class WeightComputation {
   private static final Logger logger = 
       LoggerFactory.getLogger(WeightComputation.class);
 
+  public enum MI_TYPE {
+    MUTUAL_INFORMATION, NORMALIZED_MUTUAL_INFORMATION,
+    NORMALIZED_POINTWISE_MUTUAL_INFORMATION
+  }
+  
+  /**
+   * Convenience method to call the appropriate MI-score computation according
+   * to the passed type.
+   * 
+   * @param a Occurrence count of event a (e.g. the entity doc freq).
+   * @param b Occurrence count of event b (e.g. the keyphrase doc freq).
+   * @param ab  Joint occurrence count of both events.
+   * @param total The total size of the event space.
+   * @param type  MI score type to compute
+   * @return  MI score between two events.
+   */
+  public static double computeMI(int a, int b, int ab, int total, MI_TYPE type) {
+    double mi = -1337.1337; 
+      // Default, -1337.1337 to be identifiable, should never be returned
+    switch (type) {
+      case MUTUAL_INFORMATION:
+        mi = computeMI(a, b, ab, total, false);
+      case NORMALIZED_MUTUAL_INFORMATION:
+        mi = computeMI(a, b, ab, total, true);
+      case NORMALIZED_POINTWISE_MUTUAL_INFORMATION:
+        mi = computeNPMI(a, b, ab, total);
+      default:
+        break;
+    }
+    return mi; 
+  }
+  
   /**
    * Computes the normalized pointwise mutual information (normalized by
    * -ln(p(x,y)) ). 
@@ -29,8 +61,8 @@ public class WeightComputation {
     assert b < total : "b: " + b + " was bigger than total: " + total;
     assert ab < total;
     assert ab <= a : "ab: " + ab + " was bigger than a: " + a;
-    assert ab <= b : "ab: " + ab + " was bigger than total: " + b;
-    assert a + b - ab < total;
+    assert ab <= b : "ab: " + ab + " was bigger than b: " + b;
+    assert a + b - ab <= total;
     
     if (ab == 0) {
       return -1;  // No correlation is defined as -1.  
@@ -72,9 +104,9 @@ public class WeightComputation {
     assert a < total;
     assert b < total;
     assert ab < total;
-    assert ab <= a;
-    assert ab <= b;
-    assert a + b - ab < total;
+    assert ab <= a : "ab (" + ab + ") has to be <= a (" + a + ")";;
+    assert ab <= b : "ab (" + ab + ") has to be <= b (" + b + ")";
+    assert a + b - ab <= total;
     
     double aOcc = (double) a;    
     double bOcc = (double) b;

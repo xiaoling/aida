@@ -5,8 +5,8 @@ import static org.junit.Assert.*;
 import java.io.File;
 import java.io.IOException;
 
-import javatools.util.FileUtils;
-
+import mpi.tools.javatools.util.FileUtils;
+import mpi.aida.AidaManager;
 import mpi.aida.config.AidaConfig;
 
 import org.junit.Test;
@@ -16,6 +16,8 @@ public class PreparedInputTest {
 
   public PreparedInputTest() {
     AidaConfig.set("dataAccess", "testing");
+    AidaConfig.set(AidaConfig.CACHE_WORD_EXPANSIONS, "false");
+    AidaManager.init();
   }
   
   @Test

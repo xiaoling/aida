@@ -6,7 +6,23 @@ public class Mention implements Serializable, Comparable<Mention> {
 
   private static final long serialVersionUID = 3177945435296705498L;
 
+  /** 
+   * This holds the mention string exactly 
+   * as found in the text. */
   private String mention;
+  
+  /** 
+   * This holds the normalized mention, e.g. after 
+   * lemmatizing/stemming the original mention.
+   * Use this for candidate lookup in the disambiguation
+   * phase.
+   */
+  private String normalizedMention;
+  
+  /**
+   * Needed by CoNLL reader.
+   */
+  private String ner;
 
   /** Starting token offset of the mention. */
   private int startToken;
@@ -30,8 +46,6 @@ public class Mention implements Serializable, Comparable<Mention> {
   private Entities candidateEntities;
 
   private int id = -1;
-  
-  private int[] types;
   
   /**
    * Occurrence count either in the collection or in a document. Set as needed.
@@ -91,7 +105,7 @@ public class Mention implements Serializable, Comparable<Mention> {
   }
 
   public String toString() {
-    return mention + ", From:" + startToken + "/" + startStanford + ", To:" + endToken + "/" + endStanford + ", Offset: " + charOffset + ", Length: " + charLength;
+    return mention + "[" + normalizedMention + "]" + ", From:" + startToken + "/" + startStanford + ", To:" + endToken + "/" + endStanford + ", Offset: " + charOffset + ", Length: " + charLength;
   }
 
   public void setStartToken(int start) {
@@ -125,12 +139,16 @@ public class Mention implements Serializable, Comparable<Mention> {
 
   @Override
   public boolean equals(Object obj) {
-    if (obj instanceof Mention) {
-      Mention m = (Mention) obj;
-
-      return m.getMention().equals(getMention()) && m.getCharOffset() == charOffset;
+    if (this == obj) {
+      return true;
     } else {
-      return false;
+      if (obj instanceof Mention) {
+        Mention m = (Mention) obj;
+  
+        return m.getMention().equals(getMention()) && m.getCharOffset() == charOffset;
+      } else {
+        return false;
+      }
     }
   }
 
@@ -188,13 +206,29 @@ public class Mention implements Serializable, Comparable<Mention> {
     this.occurrenceCount = occurrenceCount;
   }
 
-  
-  public int[] getTypes() {
-    return types;
+  public void setNormalizedMention(String normalizedMention) {
+    this.normalizedMention = normalizedMention;
   }
 
-  
-  public void setTypes(int[] types) {
-    this.types = types;
+  public String getNormalizedMention() {
+    String m = normalizedMention;
+    if (m == null) {
+      m = mention;
+    }
+    return m;
+  }
+
+  /**
+   * @param ner the ner to set
+   */
+  public void setNer(String ner) {
+    this.ner = ner;
+  }
+
+  /**
+   * @return the ner
+   */
+  public String getNer() {
+    return ner;
   }
 }
