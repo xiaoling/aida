@@ -581,7 +581,7 @@ public class AidaManager {
   public static void dropMentionsBelowOccurrenceCount(PreparedInput preparedInput,
       int minMentionOccurrenceCount) {
     Mentions docMentions = preparedInput.getMentions();
-    TObjectIntHashMap<String> mentionCounts = new TObjectIntHashMap<>();
+    TObjectIntHashMap<String> mentionCounts = new TObjectIntHashMap<String>();
     for (Mention m : docMentions.getMentions()) {
       mentionCounts.adjustOrPutValue(m.getMention(), 1, 1);
     }
