@@ -150,9 +150,21 @@ for (ResultMention rm : results.getResultMentions()) {
 
 <p>Start the AIDA web service with</p>
 
-<p><code>mvn jetty:run</code></p>
+<pre><code>export MAVEN_OPTS=&quot;-Xmx4G&quot;
+mvn jetty:run
+</code></pre>
 
-<p>This will expose the RESTful API. We will provide additional documentation about how to use this soon.</p>
+<p>This will expose the RESTful API, which can be accessed at the URL:</p>
+
+<p><code>http://localhost:8080/aida/service/disambiguate-defaultsettings</code></p>
+
+<p>The most basic example calls this convenience wrapper with just one parameter, &#8216;text&#8217;, which contains the input text to disambiguate. In general, the input is expected as HTTP POST request containing application/x-www-form-urlencoded parameters specifying the settings and input text. The output is a JSON object containing the disambiguation results.</p>
+
+<p>You can configure all settings by accessing the following URL:</p>
+
+<p><code>http://localhost:8080/aida/service/disambiguate</code></p>
+
+<p>Please look at <code>mpi.aida.service.web.RequestProcessor</code> for details about the parameters it expects.</p>
 
 <h2 id="inputformat">Input Format</h2>
 

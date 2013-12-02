@@ -135,14 +135,21 @@ public class KOREEntityEntitySimilarityMeasure
 		return s;
 	}
 
-	protected int[] intersect(int[] a, int[] b) {
-	  if (a == null || a.length == 0 || b == null || b.length == 0) {
+	protected int[] intersect(int[] aOrig, int[] bOrig) {
+	  if (aOrig == null || aOrig.length == 0 || bOrig == null || bOrig.length == 0) {
 	    return new int[0];
 	  }
-    // TODO(jhoffart) make sure all lists are
-    // sorted when passed, drop the sorting.
+	 
+    // TODO(jhoffart) make sure all arrays are duplicate-free and
+    // sorted when passed, then drop the following steps.
+	  TIntHashSet aSet = new TIntHashSet(aOrig);
+	  TIntHashSet bSet = new TIntHashSet(bOrig);
+	  int[] a = aSet.toArray();
+	  int[] b = bSet.toArray();
     Arrays.sort(a);
     Arrays.sort(b);
+    // Drop until above.
+   
 		TIntCollection is = new TIntLinkedList();
 		int i = 0, j = 0;
 		while (i < a.length && j < b.length) {

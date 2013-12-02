@@ -30,7 +30,7 @@ public class WeightedKeyphrasesContext extends KeyphrasesContext {
     
   private TIntDoubleHashMap keyphraseIDFweights;
   
-  private double keyphraseCoherenceAlpha = 1.0;
+  private double keyphraseCoherenceAlpha;
       
   public WeightedKeyphrasesContext(Entities entities) throws Exception {
     this(entities, new EntitiesContextSettings());

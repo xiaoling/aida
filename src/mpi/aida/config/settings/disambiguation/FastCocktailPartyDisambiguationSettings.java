@@ -18,5 +18,7 @@ public class FastCocktailPartyDisambiguationSettings extends CocktailPartyDisamb
     super();
     getSimilaritySettings().setMaxEntityKeyphraseCount(1000);
     getSimilaritySettings().setMinimumEntityKeyphraseWeight(0.001);
+    getCoherenceSimilaritySetting().setMaxEntityKeyphraseCount(1000);
+    getCoherenceSimilaritySetting().setMinimumEntityKeyphraseWeight(0.001);
   }
 }

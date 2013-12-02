@@ -3,7 +3,6 @@ package mpi.aida.data;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -11,7 +10,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import mpi.aida.access.DataAccess;
-import mpi.aida.util.htmloutput.GenerateWebHtml;
 import mpi.aida.config.settings.JsonSettings.JSONTYPE;
 import mpi.tokenizer.data.Token;
 
@@ -93,7 +91,7 @@ public class ResultProcessor {
    * 
    * @return A JSON string representation of result
    */
-	public String process(JSONTYPE jMode){
+	public JSONObject process(JSONTYPE jMode){
 	  // prepare the compact json representation
 	  jFinalObj.put("docID", input.getDocId());
     jFinalObj.put("originalFileName", inputFile);
@@ -163,7 +161,7 @@ public class ResultProcessor {
     jFinalObj.put("overallTime", ""+(time/1000));
     
     if(jMode == JSONTYPE.COMPACT){
-      return jFinalObj.toJSONString();
+      return jFinalObj;
     }
     
     // add all entities metadata (required for both WEB and EXT versions)
@@ -196,11 +194,11 @@ public class ResultProcessor {
     
     if(jMode == JSONTYPE.WEB){
 	    jFinalObj.put("tracerHtml", result.getgTracerHtml());
-	    return jFinalObj.toJSONString();
+	    return jFinalObj;
     }
 	  
     jFinalObj.put("tokens", loadTokens());
-	  return jFinalObj.toJSONString();
+	  return jFinalObj;
 	}
 	
 	private JSONArray loadTokens(){

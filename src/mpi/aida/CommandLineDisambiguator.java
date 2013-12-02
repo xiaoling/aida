@@ -266,7 +266,7 @@ public class CommandLineDisambiguator {
         ResultProcessor rp = new ResultProcessor(content.toString(), results,
             inputFile, input, resultCount);
         //String jsonStr = rp.process(false);
-        String jsonStr = rp.process(JSONTYPE.EXTENDED);
+        String jsonStr = rp.process(JSONTYPE.EXTENDED).toJSONString();
         String resultFile = null;
         String resultContent = null;
         if (outputFormat.equals("JSON")) {

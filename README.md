@@ -73,27 +73,29 @@ If you want to use AIDA in a maven project, add mpi.aida:aida-2.0 as dependency.
 
 The main classes in AIDA are `mpi.aida.Preparator` for preparing an input document and `mpi.aida.Disambiguator` for running the disambiguation on the prepared input.
 
-	// Define the input.
-	String inputText = "When [[Page]] played Kashmir at Knebworth, his Les Paul was uniquely tuned.";
-	
-	// Prepare the input for disambiguation. The Stanford NER will be run
-	// to identify names. Strings marked with [[ ]] will also be treated as names.
-	PreparationSettings prepSettings = new StanfordHybridPreparationSettings();
-	Preparator p = new Preparator();
-	PreparedInput input = p.prepare(inputText, prepSettings);
-	
-	// Disambiguate the input with the graph coherence algorithm.
-	DisambiguationSettings disSettings = new CocktailPartyDisambiguationSettings();    
-	Disambiguator d = new Disambiguator(input, disSettings);
-	DisambiguationResults results = d.disambiguate();
-	
-	// Print the disambiguation results.
-	for (ResultMention rm : results.getResultMentions()) {
-      ResultEntity re = results.getBestEntity(rm);
-	  System.out.println(rm.getMention() + " -> " + re +
-      " (" + AidaManager.getWikipediaUrl(re) + ")");
-	}
-	
+```
+// Define the input.
+String inputText = "When [[Page]] played Kashmir at Knebworth, his Les Paul was uniquely tuned.";
+
+// Prepare the input for disambiguation. The Stanford NER will be run
+// to identify names. Strings marked with [[ ]] will also be treated as names.
+PreparationSettings prepSettings = new StanfordHybridPreparationSettings();
+Preparator p = new Preparator();
+PreparedInput input = p.prepare(inputText, prepSettings);
+
+// Disambiguate the input with the graph coherence algorithm.
+DisambiguationSettings disSettings = new CocktailPartyDisambiguationSettings();    
+Disambiguator d = new Disambiguator(input, disSettings);
+DisambiguationResults results = d.disambiguate();
+
+// Print the disambiguation results.
+for (ResultMention rm : results.getResultMentions()) {
+  ResultEntity re = results.getBestEntity(rm);
+  System.out.println(rm.getMention() + " -> " + re +
+  " (" + AidaManager.getWikipediaUrl(re) + ")");
+}
+```
+
 The `ResultEntity` contains the AIDA ID via the `getEntity()` method. This can be transformed into a Wikipedia URL by calling `AidaManager.getWikipediaUrl()` for the result entity.
 
 See the `mpi.aida.config.settings.disambiguation` package for all possible predefined configurations, passed to the `Disambiguator`:
@@ -130,9 +132,22 @@ The output will be an HTML file with annotated mentions, linking to the correspo
 
 Start the AIDA web service with
 
-`mvn jetty:run`
+```
+export MAVEN_OPTS="-Xmx4G"
+mvn jetty:run
+```
 
-This will expose the RESTful API. We will provide additional documentation about how to use this soon.
+This will expose the RESTful API, which can be accessed at the URL:
+
+`http://localhost:8080/aida/service/disambiguate-defaultsettings`
+
+The most basic example calls this convenience wrapper with just one parameter, 'text', which contains the input text to disambiguate. In general, the input is expected as HTTP POST request containing application/x-www-form-urlencoded parameters specifying the settings and input text. The output is a JSON object containing the disambiguation results.
+
+You can configure all settings by accessing the following URL:
+
+`http://localhost:8080/aida/service/disambiguate`
+
+Please look at `mpi.aida.service.web.RequestProcessor` for details about the parameters it expects.
 
 ## Input Format
 

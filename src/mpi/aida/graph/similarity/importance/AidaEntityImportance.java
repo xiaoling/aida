@@ -30,7 +30,7 @@ public class AidaEntityImportance extends EntityImportance {
 
   @Override
   public double getImportance(Entity entity) {
-    return entitiesImportances.get(entity.getId());
+    return 1-entitiesImportances.get(entity.getId());
   }
   
   @Override
