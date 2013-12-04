@@ -189,9 +189,11 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
             textMention = data[2];
             entity = data[3];
             ner = data[4];
-          } else if (data.length == 7) {
-            // The public AIDA dataset release has 7 columns, however 
-            // the additional IDs are not necessary
+          } else if (data.length == 6 || data.length == 7) {
+            // The public AIDA dataset release has 6 or 7 columns,
+            // depending on the presence of the Freebase mid.
+            // However the additional IDs are not necessary for internal
+            // use.
             word = data[0];
             mentionStart = "B".equals(data[1]);
             textMention = data[2];
