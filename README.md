@@ -46,15 +46,15 @@ To use AIDA with YAGO2, download the repository we provide on our [AIDA website]
 
 Get the Entity Repository (21 GB):
 
-    curl -O http://www.mpi-inf.mpg.de/yago-naga/aida/download/entity-repository/AIDA_entity_repository_2010-08-17v5.sql.bz2
+    curl -O http://www.mpi-inf.mpg.de/yago-naga/aida/download/entity-repository/AIDA_entity_repository_2010-08-17v5-1.sql.bz2
     
 Import it into a postgres database:
 
-    bzcat AIDA_entity_repository_2010-08-17v5.sql.bz2 | psql <DATABASE>
+    bzcat AIDA_entity_repository_2010-08-17v5-1.sql.bz2 | psql <DATABASE>
     
 where <DATABASE> is a database on a PostgreSQL server.
 
-A database dump on a more recent version of Wikipedia is also available: http://www.mpi-inf.mpg.de/yago-naga/aida/download/entity-repository/AIDA_entity_repository_2012-11-01v5.sql.bz2
+A database dump on a more recent version of Wikipedia is also available: http://www.mpi-inf.mpg.de/yago-naga/aida/download/entity-repository/AIDA_entity_repository_2012-11-01v5-1.sql.bz2
 
 ## Setting up AIDA
 
