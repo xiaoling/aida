@@ -5,7 +5,7 @@ import gnu.trove.set.hash.TIntHashSet;
 import java.util.HashMap;
 import java.util.Map;
 
-import mpi.aida.AidaManager;
+import mpi.aida.access.DataAccess;
 import mpi.aida.data.Entity;
 import mpi.aida.graph.similarity.context.EntitiesContext;
 import mpi.aida.graph.similarity.context.FastWeightedKeyphrasesContext;
@@ -36,7 +36,7 @@ public class JaccardEntityEntitySimilarityMeasure extends EntityEntitySimilarity
     TIntHashSet is = new TIntHashSet();
 
     for (int a : contextA.toArray()) {
-      if (contextB.contains(a) || contextB.contains(AidaManager.expandTerm(a))) {
+      if (contextB.contains(a) || contextB.contains(DataAccess.expandTerm(a))) {
         is.add(a);
       }
     }
@@ -52,7 +52,7 @@ public class JaccardEntityEntitySimilarityMeasure extends EntityEntitySimilarity
     }
 
     for (int a : contextA.toArray()) {
-      if (!union.contains(a) && !union.contains(AidaManager.expandTerm(a))) {
+      if (!union.contains(a) && !union.contains(DataAccess.expandTerm(a))) {
         union.add(a);
       }
     }

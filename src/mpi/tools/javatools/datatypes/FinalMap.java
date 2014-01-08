@@ -22,7 +22,7 @@ Example:
    --> 2
 </PRE>
 */
-public class FinalMap<T1 extends Comparable,T2> extends TreeMap<T1,T2>{
+public class FinalMap<T1 extends Comparable<T1>,T2> extends TreeMap<T1,T2>{
 	private static final long serialVersionUID = 1L;
 
 /** Constructs a FinalMap from an array that contains key/value sequences */  

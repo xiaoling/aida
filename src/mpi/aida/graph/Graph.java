@@ -3,9 +3,21 @@
  */
 package mpi.aida.graph;
 
+import gnu.trove.iterator.TIntDoubleIterator;
+import gnu.trove.iterator.TObjectIntIterator;
+import gnu.trove.list.TIntList;
+import gnu.trove.list.array.TIntArrayList;
+import gnu.trove.map.hash.TIntDoubleHashMap;
+import gnu.trove.map.hash.TObjectDoubleHashMap;
 import gnu.trove.map.hash.TObjectIntHashMap;
+import gnu.trove.set.TIntSet;
+import gnu.trove.set.hash.TIntHashSet;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import mpi.aida.data.Mention;
 
@@ -15,13 +27,19 @@ public class Graph {
 	private double alpha;
 	
 	private int edgesCount = 0;
-	
 	private int nextNodeId = 0;
 
-	
 	private GraphNode[] nodes;
 	private TObjectIntHashMap<Mention> mentionNodesIds;
 	private TObjectIntHashMap<String> entityNodesIds;
+	/**
+	 * Storage of all local similarities. This is usually the same as the weights
+	 * on all mention-entity edges. However, when mention-entity edges are 
+	 * dropped, e.g. when running the coherence robustness test, some weights will
+	 * be missing. They are kept here.
+	 */
+	private Map<Mention, TObjectDoubleHashMap<String>> localSimilarities;
+	private TIntDoubleHashMap mentionPriorSimL1;
 	
 	protected double averageMEweight = 1.0;
 	protected double averageEEweight = 1.0;
@@ -30,6 +48,12 @@ public class Graph {
 	protected int[] nodesOutdegrees;
 	protected double[] nodesWeightedDegrees;
 	
+	/** 
+	 * After the processing is finished, this will contain all removal steps
+	 * from the very first (in the last position) to the last (in the first
+	 * position). 
+	 */
+	protected TIntList removalSteps;	
 	
 	public Graph(String name, int nodesCount, double alpha) {
 		this.name = name;
@@ -39,6 +63,8 @@ public class Graph {
 		nodes = new GraphNode[nodesCount];
 		mentionNodesIds = new TObjectIntHashMap<Mention>();
 		entityNodesIds = new TObjectIntHashMap<String>();
+		localSimilarities = new HashMap<Mention, TObjectDoubleHashMap<String>>();
+		mentionPriorSimL1 = new TIntDoubleHashMap(50, 0.5f, -1, -1.0);
 
 		isRemoved = new boolean[nodesCount];
 		Arrays.fill(isRemoved, false);
@@ -46,6 +72,8 @@ public class Graph {
 		Arrays.fill(nodesOutdegrees, 0);
 		nodesWeightedDegrees = new double[nodesCount];
 		Arrays.fill(nodesWeightedDegrees, 0);
+		
+		removalSteps = new TIntArrayList();
 	}
 	
 	public int getNodeOutdegree(int id) {
@@ -62,6 +90,11 @@ public class Graph {
 	
 	public void setRemoved(int id) {
 		isRemoved[id] = true;
+		removalSteps.add(id);
+	}
+	
+	public TIntList getRemovalSteps() {
+	  return removalSteps;
 	}
 	
 	public void setIsRemovedFlags(boolean[] isRemoved) {
@@ -104,7 +137,22 @@ public class Graph {
 		nextNodeId++;
 	}
 	
-	private void addEdge(int node1Id, int node2Id, double weight) {
+	public void addMentionPriorSimL1(Mention mention, double l1) {
+	  if (!getMentionNodesIds().containsKey(mention)) {
+	    throw new IllegalArgumentException(
+	        "Mention '" + mention + "' does not exist in graph, make sure " +
+	        "to add before adding L1.");
+	  } else {
+	    int mentionId = getMentionNodesIds().get(mention);
+	    mentionPriorSimL1.put(mentionId, l1);
+	  }	  
+  }
+	
+	public double getMentionPriorSimL1(int mentionId) {
+	  return mentionPriorSimL1.get(mentionId);
+	}
+
+  private void addEdge(int node1Id, int node2Id, double weight) {
 		if(isEntityNode(node1Id) && isEntityNode(node2Id))
 			weight = weight * (1-alpha);
 		else if ((isMentionNode(node1Id) && isEntityNode(node2Id))
@@ -173,7 +221,6 @@ public class Graph {
 		this.averageEEweight = averageEEweight;
 	}
 
-
 	public String getName() {
 		return name;
 	}
@@ -181,4 +228,129 @@ public class Graph {
 	public TObjectIntHashMap<Mention> getMentionNodesIds() {
 		return mentionNodesIds;
 	}
+	
+	public TObjectIntHashMap<String> getEntityNodesIds() {
+	  return entityNodesIds;
+  }
+	
+  public boolean isLocalMention(int mentionId) {
+    for (int candidate : getNode(mentionId).getSuccessors().keys()) {
+      for (int neighbor : getNode(candidate).getSuccessors().keys()) {
+        if (getNode(neighbor).getType().equals(GraphNodeTypes.ENTITY)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  public void setMentionEntitySim(Map<Mention, TObjectDoubleHashMap<String>> localSimiliarites) {
+    this.localSimilarities = localSimiliarites;
+  }
+  
+  public void addMentionEntitySim(Mention mention, String entityName, double sim) {
+    TObjectDoubleHashMap<String> sims = localSimilarities.get(mention);
+    if (sims == null) {
+      sims = new TObjectDoubleHashMap<String>();
+      localSimilarities.put(mention, sims);
+    }
+    sims.put(entityName, sim);
+  }
+  
+  public TObjectDoubleHashMap<String> getMentionEntitySims(Mention mention) {
+    return localSimilarities.get(mention);
+  }
+  
+  public Graph copyRemovingNodesAndEdges(
+    final TIntSet nodesToRemove, 
+    final Set<Edge> edgesToRemove) {
+    Graph pruned = new Graph(
+    getName(), getNodesCount() - nodesToRemove.size(), alpha);
+    pruned.setAverageEEweight(getAverageEEweight());
+    pruned.setAverageMEweight(getAverageMEweight());
+    // Add all non-removed nodes plus mention-entity edges.
+    TIntSet addedEntities = new TIntHashSet();
+    for (TObjectIntIterator<Mention> itr = getMentionNodesIds().iterator(); 
+        itr.hasNext(); ) {
+      itr.advance();
+      int mentionId = itr.value();
+      if (!nodesToRemove.contains(mentionId)) {
+        Mention m = itr.key();
+        pruned.addMentionNode(m);
+        GraphNode mentionNode = getNode(mentionId);     
+        for (TIntDoubleIterator entityItr = mentionNode.getSuccessors().iterator(); 
+            entityItr.hasNext(); ) {
+          entityItr.advance();
+          int entityId = entityItr.key();
+          if (!nodesToRemove.contains(entityId)) {
+            GraphNode entityNode = getNode(entityId);
+            String entityName = (String) entityNode.getNodeData();
+            if (!addedEntities.contains(entityId)) {
+              pruned.addEntityNode(entityName);
+              addedEntities.add(entityId);
+            }
+            Edge toAdd = new Edge(mentionId, entityId);
+            if (!edgesToRemove.contains(toAdd)) {
+              pruned.addEdge(m, entityName, entityItr.value());
+              pruned.addMentionEntitySim(
+                  m, entityName, 
+                  getMentionEntitySims(m).get(entityName));
+            }
+          }
+        }
+      }
+    }
+    // Add all edges between entities which have not been removed.
+    Set<Edge> addedEdges = new HashSet<Edge>();
+    for (TObjectIntIterator<String> itr = getEntityNodesIds().iterator(); 
+        itr.hasNext(); ) {
+      itr.advance();
+      int entityId = itr.value();
+      if (!nodesToRemove.contains(entityId)) {
+        String entityName = itr.key();
+        GraphNode entityNode = getNode(entityId);
+        for (TIntDoubleIterator entityItr = entityNode.getSuccessors().iterator(); 
+            entityItr.hasNext(); ) {
+          entityItr.advance();
+          int neighborId = entityItr.key();
+          GraphNode neighborNode = getNode(neighborId);
+          if (neighborNode.getType().equals(GraphNodeTypes.ENTITY) &&
+              !nodesToRemove.contains(neighborId)) {
+            String neighborName = (String) neighborNode.getNodeData();
+            Edge toAdd = new Edge(entityId, neighborId);
+            if (!addedEdges.contains(toAdd) && 
+                !edgesToRemove.contains(toAdd)) {
+              pruned.addEdge(entityName, neighborName, entityItr.value());
+              addedEdges.add(toAdd);
+            }
+          }
+        }
+      }
+    }
+    return pruned;
+  }
+  
+  public class Edge {
+    int source;
+    int target;
+
+    public Edge(int x, int y) {
+      source = Math.min(x, y);
+      target = Math.max(x, y);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o instanceof Edge) {
+        Edge e = (Edge) o;
+        return source == e.source && target == e.target;
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return source * target;
+    }
+  }
 }

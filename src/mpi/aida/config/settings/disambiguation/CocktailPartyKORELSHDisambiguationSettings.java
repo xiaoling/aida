@@ -22,22 +22,22 @@ public class CocktailPartyKORELSHDisambiguationSettings extends DisambiguationSe
   private static final long serialVersionUID = 5867674989478781057L;
 
   public CocktailPartyKORELSHDisambiguationSettings() throws MissingSettingException {
-    setAlpha(0.6);
+    getGraphSettings().setAlpha(0.6);
     setTracingTarget(TracingTarget.WEB_INTERFACE);
      
     setDisambiguationTechnique(TECHNIQUE.GRAPH);
     setDisambiguationAlgorithm(ALGORITHM.COCKTAIL_PARTY_SIZE_CONSTRAINED);
-    setUseExhaustiveSearch(true);
-    setUseNormalizedObjective(true);
-    setEntitiesPerMentionConstraint(5);
-    setUseCoherenceRobustnessTest(true);
-    setCohRobustnessThreshold(0.9);
+    getGraphSettings().setUseExhaustiveSearch(true);
+    getGraphSettings().setUseNormalizedObjective(true);
+    getGraphSettings().setEntitiesPerMentionConstraint(5);
+    getGraphSettings().setUseCoherenceRobustnessTest(true);
+    getGraphSettings().setCohRobustnessThreshold(0.9);
     
     List<String[]> cohConfigs = new LinkedList<String[]>();
     cohConfigs.add(new String[] { "KORELSHEntityEntitySimilarity", "1.0" });
 
     SimilaritySettings switchedKPsettings = new SimilaritySettings(
-        LocalDisambiguationSettings.simConfigs, cohConfigs, 
+        LocalDisambiguationSettings.getSimConfigs(), cohConfigs, 
         LocalDisambiguationSettings.priorWeight);
     switchedKPsettings.setIdentifier("SwitchedKP");
     switchedKPsettings.setPriorThreshold(0.9);
@@ -53,8 +53,8 @@ public class CocktailPartyKORELSHDisambiguationSettings extends DisambiguationSe
     setSimilaritySettings(switchedKPsettings);
         
     SimilaritySettings unnormalizedKPsettings = new SimilaritySettings(
-        CocktailPartyDisambiguationSettings.coherenceRobustnessSimConfigs, null, 0.0);
+        CocktailPartyDisambiguationSettings.getCoherenceRobustnessSimConfigs(), null, 0.0);
     switchedKPsettings.setIdentifier("CoherenceRobustnessTest");
-    setCoherenceSimilaritySetting(unnormalizedKPsettings);
+    getGraphSettings().setCoherenceSimilaritySetting(unnormalizedKPsettings);
   }
 }

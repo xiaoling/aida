@@ -26,6 +26,8 @@ public class FastWeightedKeyphrasesContext extends WeightedKeyphrasesContext {
   
   private double keywordCoherenceAlpha = 0.0;
   
+  private TIntDoubleHashMap entityVectorNorms;
+  
   // for fast similarity calculation
   private TIntObjectHashMap<int[]> entity2keywordIds;
   
@@ -51,14 +53,33 @@ public class FastWeightedKeyphrasesContext extends WeightedKeyphrasesContext {
     if (settings != null) {
       keywordCoherenceAlpha = settings.getEntityCoherenceKeywordAlpha();
     }
-        
+            
     // create vectors + datastructures for speeding up the calculation    
     entity2keywordIds = createEntity2keywordMapping();
     entity2combinedMiIdfKeyphraseWeights = createEntity2combinedMiIdfKeyphraseWeightsMapping();
     entity2keyword2keyphrases = createEntity2keyword2keyphrasesMapping();
-    entity2keyphrase2keywordWeightSum = createEntity2keyphrase2keywordWeightSumMapping();
-        
+    entity2keyphrase2keywordWeightSum = createEntity2keyphrase2keywordWeightSumMapping();        
+    entityVectorNorms = calculateVectorNorms(entities, entity2keywordIds);
+    
     logger.info("FastWeightedKeyphrasesContext setup done");
+  }
+
+  private TIntDoubleHashMap calculateVectorNorms(
+      final Entities entities, final TIntObjectHashMap<int[]> entityKeywords) {
+    TIntDoubleHashMap norms = new TIntDoubleHashMap();
+    
+    for (Entity e : entities) {
+      double norm = 0.0;
+      int[] kws = entityKeywords.get(e.getId());        
+      for (int kw : kws) {
+        double weight = getCombinedKeywordMiIdfWeight(e, kw);
+        norm += weight * weight;
+      }
+      
+      norms.put(e.getId(), Math.sqrt(norm));
+    }
+    
+    return norms;
   }
   
   private TIntObjectHashMap<TIntDoubleHashMap> createEntity2keyphrase2keywordWeightSumMapping() {
@@ -182,6 +203,10 @@ public class FastWeightedKeyphrasesContext extends WeightedKeyphrasesContext {
 
   public String getKeywordForId(int kwId) {
     return DataAccess.getWordForId(kwId);
+  }
+
+  public double getWeightVectorNorm(Entity entity) {
+    return entityVectorNorms.get(entity.getId());
   }
 
   // For tracing only. Please don't abuse!

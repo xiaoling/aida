@@ -26,14 +26,13 @@ public class StopWord {
   private Map<LANGUAGE,String> pathSymbols = null;
 
   private static StopWord stopwords = null;
-  private static LANGUAGE loadedLanguage = null;
 
   //This method is left synchronized intentionally for performance reasons,
   //It doesn't cause problems because the data don't change, in the worst case, 
   //this would be instantiated multiple times
   private static StopWord getInstance() {
-    LANGUAGE language = AidaConfig.getLanguage();
-    if (stopwords == null || loadedLanguage != language) {
+    if (stopwords == null) {
+      LANGUAGE language = AidaConfig.getLanguage();
       stopwords = new StopWord(language);
     }
     return stopwords;
@@ -50,7 +49,6 @@ public class StopWord {
     symbols = new HashSet<String>();
     init(language);
     load(language);
-    loadedLanguage = language;
   }
   
   private void init(LANGUAGE language) {

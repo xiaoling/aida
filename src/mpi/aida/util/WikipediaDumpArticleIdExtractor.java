@@ -35,7 +35,6 @@ public class WikipediaDumpArticleIdExtractor {
       page = Char.decodeAmpersand(page.replace("&amp;", "&"));
       String title = FileLines.readBetween(page, "<title>", "</title>");
       String id = FileLines.readBetween(page, "<id>", "</id>");
-      String wpUrl = "http://en.wikipedia.org/wiki/" + title.replace(' ', '_');
       System.out.println(Normalize.entity(title) + "\t" + id);
       
       page = FileLines.readBetween(reader, "<page>", "</page>");

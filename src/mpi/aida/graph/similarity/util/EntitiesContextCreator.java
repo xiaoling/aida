@@ -19,8 +19,10 @@ import org.slf4j.LoggerFactory;
  * Caches entity contexts based on the context id and document id.
  * Assumes distinct document ids and caches up to ecc contexts.
  * 
- *
+ * DEPRECATED: Caching is now done on a per-entity granularity at the
+ * DataAccess level.
  */
+@Deprecated
 public class EntitiesContextCreator {  
   private Logger logger_ = LoggerFactory.getLogger(EntitiesContextCreator.class);
   
@@ -47,6 +49,10 @@ public class EntitiesContextCreator {
     public static EntitiesContextCreator ecc = new EntitiesContextCreator();
   }
   
+  public static EntitiesContextCreator getEntitiesContextCache() {
+    return EntitiesContextCreatorHolder.ecc;
+  }
+  
   public EntitiesContextCreator() {
     int size = AidaConfig.getAsInt(AidaConfig.ENTITIES_CONTEXT_CACHE_SIZE);
     // Has to be at least 1.
@@ -55,10 +61,6 @@ public class EntitiesContextCreator {
       size = 1;
     }
     cacheSize = size;
-  }
-
-  public static EntitiesContextCreator getEntitiesContextCache() {
-    return EntitiesContextCreatorHolder.ecc;
   }
     
   public EntitiesContext getEntitiesContext(

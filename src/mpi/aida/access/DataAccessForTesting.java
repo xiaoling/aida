@@ -1,5 +1,6 @@
 package mpi.aida.access;
 
+import gnu.trove.iterator.TIntIntIterator;
 import gnu.trove.map.hash.TIntDoubleHashMap;
 import gnu.trove.map.hash.TIntIntHashMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
@@ -14,7 +15,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import mpi.aida.AidaManager;
 import mpi.aida.access.DataAccess.type;
 import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
@@ -204,7 +204,7 @@ public class DataAccessForTesting implements DataAccessInterface {
     int id = wordId;
     ++wordId;
     word2id.put(word, id);
-    String wordUpper = AidaManager.expandTerm(word);
+    String wordUpper = DataAccess.expandTerm(word);
     int upper = wordId;
     if (word2id.containsKey(wordUpper)) {
       upper = word2id.get(wordUpper);
@@ -443,7 +443,7 @@ public class DataAccessForTesting implements DataAccessInterface {
   }
 
   @Override
-  public Map<Entity, int[]> getEntityLSHSignatures(Entities entities) {
+  public TIntObjectHashMap<int[]> getEntityLSHSignatures(Entities entities) {
     System.err.println("Accessed " + getMethodName());
     return null;
   }
@@ -461,7 +461,7 @@ public class DataAccessForTesting implements DataAccessInterface {
   }
 
   @Override
-  public Map<Entity, int[]> getEntityLSHSignatures(Entities entities, String table) {
+  public TIntObjectHashMap<int[]> getEntityLSHSignatures(Entities entities, String table) {
     System.err.println("Accessed " + getMethodName());
     return null;
   }
@@ -764,5 +764,29 @@ public class DataAccessForTesting implements DataAccessInterface {
   @Override
   public String getConfigurationName() {
     return "YAGO";
+  }
+
+
+  @Override
+  public int[] getAllKeywordDocumentFrequencies() {
+    TIntHashSet keywords = new TIntHashSet();
+    int max = 0;
+    for (String[] kpF : allKeyphraseFrequencies) {
+      String[] tokens = kpF[0].split(" ");
+      for (String token : tokens) {
+        int id = DataAccess.getIdForWord(token);
+        keywords.add(id);
+        if (id > max) { max = id; }
+      }
+    }
+    TIntIntHashMap keywordCounts = getKeywordDocumentFrequencies(keywords);
+    int[] counts = new int[max + 1];
+    for (TIntIntIterator itr = keywordCounts.iterator(); itr.hasNext(); ) {
+      itr.advance();
+      int keywordId = itr.key();     
+      counts[keywordId] = itr.value();
+    }
+    
+    return counts;
   }  
 }

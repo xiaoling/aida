@@ -12,6 +12,7 @@ import mpi.aida.graph.similarity.measure.InlinkOverlapEntityEntitySimilarity;
 import mpi.aida.graph.similarity.measure.JaccardEntityEntitySimilarityMeasure;
 import mpi.aida.graph.similarity.measure.KOREEntityEntitySimilarityMeasure;
 import mpi.aida.graph.similarity.measure.KeyphraseCosineSimilarityMeasure;
+import mpi.aida.graph.similarity.measure.KeywordCosineSimilarityMeasure;
 import mpi.aida.graph.similarity.measure.MilneWittenEntityEntitySimilarity;
 import mpi.aida.graph.similarity.measure.NGDSimilarityMeasure;
 import mpi.aida.graph.similarity.measure.NullEntityEntitySimilarityMeasure;
@@ -96,6 +97,10 @@ public class EntityEntitySimilarity {
     return new EntityEntitySimilarity(new WeightedNGDSimilarityMeasure(tracer), new WeightedKeyphrasesContext(entities, settings));
   }
 
+  public static EntityEntitySimilarity getKeywordCosineEntityEntitySimilarity(Entities entities, EntitiesContextSettings settings, Tracer tracer) throws Exception {
+    return new EntityEntitySimilarity(new KeywordCosineSimilarityMeasure(tracer), new FastWeightedKeyphrasesContext(entities, settings));
+  }
+  
   public static EntityEntitySimilarity getKeyphraseBasedEntityEntitySimilarity(Entities entities, EntitiesContextSettings settings, Tracer tracer) throws Exception {
     return new EntityEntitySimilarity(new KeyphraseCosineSimilarityMeasure(tracer), new WeightedKeyphrasesContext(entities, settings));
   }
@@ -113,7 +118,7 @@ public class EntityEntitySimilarity {
   public static EntityEntitySimilarity getKOREEntityEntitySimilarity(Entities entities, EntitiesContextSettings settings, Tracer tracer) throws Exception {
     return new EntityEntitySimilarity(new KOREEntityEntitySimilarityMeasure(tracer), new FastWeightedKeyphrasesContext(entities, settings));
   }
-  
+
   public static EntityEntitySimilarity getJaccardKeywordEntityEntitySimilarity(Entities entities, Tracer tracer) throws Exception {
     return new EntityEntitySimilarity(new JaccardEntityEntitySimilarityMeasure(tracer), new FastWeightedKeyphrasesContext(entities));
   }

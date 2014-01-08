@@ -1,6 +1,5 @@
 package mpi.aida.graph.similarity;
 
-import gnu.trove.map.hash.TObjectDoubleHashMap;
 import mpi.aida.data.Context;
 import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
@@ -26,8 +25,6 @@ public class MentionEntitySimilarity {
   protected EntitiesContext entitiesContext;
 
   private double weight;
-
-  private TObjectDoubleHashMap<String> scoreCache = null;
 
   /**
    * Construct a similarity measure that compares the context of mention and entity
@@ -87,19 +84,8 @@ public class MentionEntitySimilarity {
    * @return                Similarity between mention and entity (in this context)
    * @throws Exception
    */
-  public double calcSimilarity(Mention mention, Context context, Entity entity, String docId) throws Exception {
-    // get cache score if available
-    if (scoreCache != null && !scoreCache.isEmpty()) {
-      String cacheId = getCacheId(mention, docId, entity);
-
-      if (scoreCache.contains(cacheId)) {
-        double score = scoreCache.get(cacheId);
-        return score;
-      }
-    }
-
+  public double calcSimilarity(Mention mention, Context context, Entity entity) throws Exception {
     double sim = similarityMeasure.calcSimilarity(mention, context, entity, entitiesContext);
-
     return sim;
   }
 
@@ -113,12 +99,6 @@ public class MentionEntitySimilarity {
   
   public int[] getEntityContext(Entity entity) {
 	  return entitiesContext.getContext(entity);
-  }
-  
-
-  private String getCacheId(Mention mention, String docId, Entity entity) {
-    String cacheId = docId + ":" + mention.getStartToken() + "\t" + entity.getId();
-    return cacheId;
   }
 
   public String toString() {

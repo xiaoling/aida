@@ -13,6 +13,7 @@ import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
 import mpi.aida.graph.similarity.EntityEntitySimilarity;
 import mpi.aida.graph.similarity.context.EntitiesContextSettings;
+import mpi.aida.graph.similarity.context.EntitiesContextSettings.EntitiesContextType;
 import mpi.experiment.trace.NullTracer;
 
 import org.junit.Test;
@@ -21,7 +22,7 @@ import org.junit.Test;
 public class KORETest {
   public KORETest() {
     AidaConfig.set("dataAccess", "testing");
-    AidaConfig.set(AidaConfig.CACHE_WORD_EXPANSIONS, "false");
+    AidaConfig.set(AidaConfig.CACHE_WORD_DATA, "false");
     AidaManager.init();
   }
   
@@ -42,8 +43,8 @@ public class KORETest {
     ecs.setEntityCoherenceKeyphraseAlpha(1.0);
     ecs.setEntityCoherenceKeywordAlpha(0.0);
     ecs.setShouldNormalizeWeights(true);
+    ecs.setEntitiesContextType(EntitiesContextType.ENTITY_ENTITY);
     Map<String, Double> keyphraseSourceWeights = new HashMap<String, Double>();
-    keyphraseSourceWeights.put(DataAccess.KPSOURCE_INLINKTITLE, 0.0);
     ecs.setEntityEntityKeyphraseSourceWeights(keyphraseSourceWeights);
     EntityEntitySimilarity kore = 
         EntityEntitySimilarity.getKOREEntityEntitySimilarity(

@@ -125,6 +125,7 @@ public class HtmlGenerator {
    * Generates HTML list items based on the mention-entity result from json.
    * @return HTML snippet
    */
+  @SuppressWarnings("rawtypes")
   public String generateMEHtml(){
     JSONArray mentions = (JSONArray)jsonContent.get("mentions");
     Iterator itMention = mentions.iterator();

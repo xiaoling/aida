@@ -4,7 +4,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import mpi.tools.javatools.datatypes.Pair;
 import mpi.aida.config.settings.PreparationSettings.LANGUAGE;
 import mpi.aida.data.Mention;
 import mpi.aida.data.Mentions;
@@ -13,6 +12,7 @@ import mpi.tokenizer.data.Token;
 import mpi.tokenizer.data.Tokenizer;
 import mpi.tokenizer.data.TokenizerManager;
 import mpi.tokenizer.data.Tokens;
+import mpi.tools.javatools.datatypes.Pair;
 
 public class ManualFilter {
 
@@ -22,10 +22,10 @@ public class ManualFilter {
 
   protected static final int tagSize = startTag.length();;
 
-  public Pair<Tokens, Mentions> filter(String text, String docId, FilterType by, LANGUAGE language) {
+  public Pair<Tokens, Mentions> filter(String text, FilterType by, LANGUAGE language) {
     Mentions mentions = new Mentions();
     String filteredText = filterText(text, mentions);
-    Tokens tokens = tokenize(filteredText, docId, by, mentions, language);
+    Tokens tokens = tokenize(filteredText, by, mentions, language);
     Pair<Tokens, Mentions> tokensMentions = new Pair<Tokens, Mentions>(tokens, mentions);
     return tokensMentions;
   }
@@ -61,35 +61,35 @@ public class ManualFilter {
     return sb.toString();
   }
 
-  private Tokens tokenize(String filteredText, String docId, FilterType by, Mentions mentions, LANGUAGE language) {
+  private Tokens tokenize(String filteredText, FilterType by, Mentions mentions, LANGUAGE language) {
     Tokens tokens = null;
     // TODO(jhoffart,mamir): get Manual* back if necessary.
     if (FilterMentions.FilterType.STANFORD_NER.equals(by)) {
       switch (language) {
         case en:
-//          tokens = AidaManager.tokenizeNER(docId, filteredText, false);//why this and not the next line?
-          tokens = TokenizerManager.parse(docId, filteredText, Tokenizer.type.ner, false);
+//          tokens = AidaManager.tokenizeNER(filteredText, false);//why this and not the next line?
+          tokens = TokenizerManager.tokenize(filteredText, Tokenizer.type.ner, false);
           break;
         case de:
-          tokens = TokenizerManager.parse(docId, filteredText, Tokenizer.type.germanner, false);
+          tokens = TokenizerManager.tokenize(filteredText, Tokenizer.type.germanner, false);
         default:
           break;
       }
     }    
 //    else if (FilterMentions.FilterType.ManualPOS.equals(by)) {
-//    	tokens = AidaManager.tokenizePOS(docId, filteredText, true);
+//    	tokens = AidaManager.tokenizePOS(filteredText, true);
 //    }  else if (FilterMentions.FilterType.Manual_NER.equals(by)) {
-//      tokens = AidaManager.tokenizeNER(docId, filteredText, true);
+//      tokens = AidaManager.tokenizeNER(filteredText, true);
 //    }else {
-//      tokens = AidaManager.tokenize(docId, filteredText);
+//      tokens = AidaManager.tokenize(filteredText);
 //    }
     else if(FilterMentions.FilterType.ManualPOS.equals(by)) {
       switch (language) {
         case en:
-          tokens = TokenizerManager.parse(docId, filteredText, Tokenizer.type.pos, true);
+          tokens = TokenizerManager.tokenize(filteredText, Tokenizer.type.pos, true);
           break;
         case de:
-          tokens = TokenizerManager.parse(docId, filteredText, Tokenizer.type.germanpos, true);
+          tokens = TokenizerManager.tokenize(filteredText, Tokenizer.type.germanpos, true);
         default:
           break;
       }
@@ -97,16 +97,16 @@ public class ManualFilter {
     else if(FilterMentions.FilterType.Manual_NER.equals(by)) {
       switch (language) {
         case en:
-          tokens = TokenizerManager.parse(docId, filteredText, Tokenizer.type.ner, true);
+          tokens = TokenizerManager.tokenize(filteredText, Tokenizer.type.ner, true);
           break;
         case de:
-          tokens = TokenizerManager.parse(docId, filteredText, Tokenizer.type.germanner, true);
+          tokens = TokenizerManager.tokenize(filteredText, Tokenizer.type.germanner, true);
         default:
           break;
       }
     }
     else {
-      tokens = TokenizerManager.parse(docId, filteredText, Tokenizer.type.tokens, false);
+      tokens = TokenizerManager.tokenize(filteredText, Tokenizer.type.tokens, false);
     }
     List<String> textContent = new LinkedList<String>();
     for (int p = 0; p < tokens.size(); p++) {

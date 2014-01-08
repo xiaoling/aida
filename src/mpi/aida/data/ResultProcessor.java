@@ -31,17 +31,12 @@ public class ResultProcessor {
 	private JSONObject jFinalObj;
 	
 	private JSONArray jAllMentions;
-	private JSONArray jAllEntities;
 	// HashMap to be used for Text annotation
 	private Map<Integer, ResultMention> hshResultMention;
 
 	private void init(){
 		jFinalObj = new JSONObject();
-//		jFinalObj.put("docID", input.getDocId());
-//		jFinalObj.put("originalFileName", inputFile);
-//		jFinalObj.put("gTracerHTML", result.getgTracerHtml());
 		jAllMentions = new JSONArray();
-		jAllEntities = new JSONArray();
 	}
 
 	public ResultProcessor(){
@@ -91,7 +86,8 @@ public class ResultProcessor {
    * 
    * @return A JSON string representation of result
    */
-	public JSONObject process(JSONTYPE jMode){
+	@SuppressWarnings("unchecked")
+  public JSONObject process(JSONTYPE jMode){
 	  // prepare the compact json representation
 	  jFinalObj.put("docID", input.getDocId());
     jFinalObj.put("originalFileName", inputFile);
@@ -167,7 +163,6 @@ public class ResultProcessor {
     // add all entities metadata (required for both WEB and EXT versions)
     JSONObject jMetadataArray = new JSONObject();
     for(Entry<Integer, EntityMetaData> e : hshIdMetadata.entrySet()){
-      JSONObject jEntityUrlObj = new JSONObject();
       JSONObject jMetadata = new JSONObject();
       int entityId = e.getKey();
       EntityMetaData eData = e.getValue();
@@ -201,7 +196,8 @@ public class ResultProcessor {
 	  return jFinalObj;
 	}
 	
-	private JSONArray loadTokens(){
+	@SuppressWarnings("unchecked")
+  private JSONArray loadTokens(){
 		List<Token> lstToks = input.getTokens().getTokens();
 		JSONArray jTokArr = new JSONArray();
 		for(Token tk : lstToks){
@@ -220,7 +216,8 @@ public class ResultProcessor {
 		return jTokArr;
 	}
 
-	private JSONObject generateJSONForMention(ResultMention rm) {
+	@SuppressWarnings("unchecked")
+  private JSONObject generateJSONForMention(ResultMention rm) {
 		JSONObject jObj = new JSONObject();
 		// create json representation for given mention
 		String mentionName = rm.getMention();
@@ -228,9 +225,6 @@ public class ResultProcessor {
 		jObj.put("name", mentionName);
 		jObj.put("length", rm.getCharacterLength());
 		jObj.put("offset", offset);
-
-		// create json representation for given entity
-		ResultEntity entity = result.getBestEntity(rm);
 		return jObj;
 	}
 
@@ -268,19 +262,4 @@ public class ResultProcessor {
 		sb.append("[[").append(url).append("|").append(rm.getMention()).append("]]");
 		return sb.toString();
 	}
-	 
-  private JSONArray getJSONForEntityMetadata(){
-    JSONArray jEntityArr = new JSONArray();
-    Map<String, EntityMetaData> metadata = result.getEntitiesMetaData();
-    for(String entity : metadata.keySet()){
-      JSONObject jEntityObj = new JSONObject();
-      EntityMetaData temp = metadata.get(entity);
-      jEntityObj.put("name",entity);
-      jEntityObj.put("id",temp.getId());
-      jEntityObj.put("url",temp.getUrl());
-      jEntityObj.put("readableRepr",temp.getHumanReadableRepresentation());
-      jEntityArr.add(jEntityObj);
-    }
-    return jEntityArr;
-  }
 }

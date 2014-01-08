@@ -2,8 +2,11 @@ package mpi.aida.graph.algorithms;
 
 import gnu.trove.iterator.TIntDoubleIterator;
 import gnu.trove.iterator.TIntIterator;
+import gnu.trove.iterator.TObjectIntIterator;
 import gnu.trove.list.linked.TIntLinkedList;
 import gnu.trove.map.hash.TIntDoubleHashMap;
+import gnu.trove.set.TIntSet;
+import gnu.trove.set.hash.TIntHashSet;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -13,9 +16,12 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.PriorityQueue;
 import java.util.Set;
 
+import mpi.aida.config.settings.ConfidenceSettings;
+import mpi.aida.config.settings.GraphSettings;
 import mpi.aida.data.Mention;
 import mpi.aida.data.ResultEntity;
 import mpi.aida.data.ResultMention;
@@ -35,7 +41,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 			.getLogger(CocktailParty.class);
 
 	protected ShortestPath shortestPath;
-	protected Graph graph;
+	protected Graph graph_;
 
 	private boolean useExhaustiveSearch;
 	private Map<ResultMention, List<ResultEntity>> solution;
@@ -52,26 +58,35 @@ public class CocktailParty extends DisambiguationAlgorithm {
 	private Map<Integer, Double> bestWeightedDegrees = new HashMap<Integer, Double>();
 	private boolean[] bestRemoved;
 
-	private double entityAlpha = 1.0;
-
-	private double threshold;
-
-	private boolean useNormalizedObjective = true;
-
+	private GraphSettings graphSettings;
+		
 	private boolean isTracing = false;
+	
+	private boolean computeConfidence = false;
+	
+	private ConfidenceSettings confSettings;
+	
+	private double distanceThreshold_;
 
-	public CocktailParty(Graph graph, boolean useExhaustiveSearch,
-			boolean useNormalizedObjective) throws IOException,
+	public CocktailParty(Graph graph, GraphSettings graphSettings) 
+          throws IOException,
+      ClassNotFoundException, InterruptedException {
+	  this(graph, graphSettings, false, new ConfidenceSettings());
+	}
+	
+	public CocktailParty(Graph graph, GraphSettings graphSettings,
+			boolean computeConfidence, ConfidenceSettings confSettings) 
+			    throws IOException,
 			ClassNotFoundException, InterruptedException {
 
 		if (!(GraphTracer.gTracer instanceof NullGraphTracer))
 			isTracing = true;
 
 		this.shortestPath = new ShortestPath();
-		this.useExhaustiveSearch = useExhaustiveSearch;
-		this.useNormalizedObjective = useNormalizedObjective;
-		this.graph = graph;
-		bestRemoved = new boolean[graph.getNodesCount()];
+		this.graphSettings = graphSettings;
+		this.computeConfidence = computeConfidence;
+		this.confSettings = confSettings;
+		this.graph_ = graph;
 	}
 
 	public void setExhaustiveSearch(boolean es) {
@@ -81,24 +96,31 @@ public class CocktailParty extends DisambiguationAlgorithm {
 	public Map<ResultMention, List<ResultEntity>> disambiguate()
 			throws Exception {
 		solution = new HashMap<ResultMention, List<ResultEntity>>();
-		int moduleId = RunningTimer.start("CocktailPartyDisambiguation");
-		int diameter = getDiameter();
 		long start = System.currentTimeMillis();
+		int moduleId = RunningTimer.start("CocktailPartyDisambiguation");
+		RunningTimer.stageStart("CocktailPartyDisambiguation", "RemoveDanglingMentions", moduleId);
+		TIntSet nodesToRemove = removeUnconnectedMentionEntityPairs(graph_, solution);
+		Graph g = createGraphByRemovingNodes(graph_, nodesToRemove);
+    RunningTimer.stageEnd("CocktailPartyDisambiguation", "RemoveDanglingMentions", moduleId);
+    bestRemoved = new boolean[g.getNodesCount()];
+    int diameter = getDiameter();
+		
 		// Rescale the distance threshold by the global average distance
 		// (derived by the average edge weight)
-		double globalAverageWeight = (graph.getAverageMEweight() + graph
+		double globalAverageWeight = (g.getAverageMEweight() + g
 				.getAverageEEweight()) / 2.0;
 
-		threshold = diameter * (1 - globalAverageWeight) * 0.5;
+		distanceThreshold_ = diameter * (1 - globalAverageWeight) * 0.5;
 		
-		debugAndTraceInitialGraphProperties(diameter, globalAverageWeight);
-		
+		debugAndTraceInitialGraphProperties(
+		    g, diameter, distanceThreshold_, globalAverageWeight);
+				
 		Arrays.fill(bestRemoved, false);
 
-		double initialObjective = firstScanAndCalculateInitialObjective();
+		double initialObjective = firstScanAndCalculateInitialObjective(g);
 
 		if (isTracing) {
-			traceIntitialGraphStructure();
+			traceIntitialGraphStructure(g);
 		}
 
 		Set<Integer> bestNotRemovable = notRemovableEntities.keySet();
@@ -108,7 +130,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 
 		logger.info("Initial minimum weighted degree: " + initialObjective);
 
-		debugAndTraceInitialDismabiguationProblemProperties();
+		debugAndTraceInitialDismabiguationProblemProperties(g);
 
 		int iterations = 0;
 		while (true) {
@@ -118,14 +140,14 @@ public class CocktailParty extends DisambiguationAlgorithm {
 				 * currently, compute the shortest-path distances only in the
 				 * first iteration.
 				 * */
-				removeInitialEntitiesByDistance();
+				removeInitialEntitiesByDistance(g);
 
 				if (isTracing) {
-					traceCleanedGraphStructure();
+					traceCleanedGraphStructure(g);
 				}
 			}
 
-			int removableMinimumNode = getRemovableMinimumNode();
+			int removableMinimumNode = getRemovableMinimumNode(g);
 
 			if (removableMinimumNode == -1) {
 				if (iterations == 1) {
@@ -142,12 +164,12 @@ public class CocktailParty extends DisambiguationAlgorithm {
 			entitySortedDegrees.remove(removableMinimumNode + ":::"
 					+ removableMinimumWeightedDegree);
 			entityWeightedDegrees.remove(removableMinimumNode);
-			graph.setRemoved(removableMinimumNode);
+			g.setRemoved(removableMinimumNode);
 
-			updateNeighboringNodes(removableMinimumNode);
+			updateNeighboringNodes(g, removableMinimumNode);
 
 			if (isTracing) {
-				traceEntityRemovalStep(removableMinimumNode, removableMinimumWeightedDegree);
+				traceEntityRemovalStep(g, removableMinimumNode, removableMinimumWeightedDegree);
 			}
 
 			double removableMin = Double.POSITIVE_INFINITY;
@@ -171,7 +193,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 
 			double objective = calculateObjective(
 					absoluteMinimumWeightedDegree, entityWeightedDegrees);
-
+			
 			if (objective > bestValue) {
 				bestValue = objective;
 				bestRemovable = new HashSet<Integer>(
@@ -184,18 +206,18 @@ public class CocktailParty extends DisambiguationAlgorithm {
 					bestMentionDegrees.put(men, mentionDegrees.get(men));
 				}
 
-				if (isTracing) {
-					// keep track of actual weights
-					bestWeightedDegrees = new HashMap<Integer, Double>();
-					for (int men : entityWeightedDegrees.keySet()) {
-						bestWeightedDegrees.put(men,
-								entityWeightedDegrees.get(men));
-					}
-				}
-
 				for (int b = 0; b < bestRemoved.length; b++) {
-					bestRemoved[b] = graph.isRemoved(b);
+					bestRemoved[b] = g.isRemoved(b);
 				}
+				
+	      if (isTracing) {
+	        // keep track of actual weights
+	        bestWeightedDegrees = new HashMap<Integer, Double>();
+	        for (int men : entityWeightedDegrees.keySet()) {
+	          bestWeightedDegrees.put(men,
+	              entityWeightedDegrees.get(men));
+	        }
+	      }
 			}
 
 		} // end main loop of the algorithm
@@ -216,7 +238,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 			double objective = calculateObjective(
 					absoluteMinimumWeightedDegree, entityWeightedDegrees);
 
-			if (objective >= bestValue) {
+			if (objective > bestValue) {
 				bestValue = objective;
 				bestRemovable = new HashSet<Integer>(
 						entityWeightedDegrees.keySet());
@@ -229,31 +251,31 @@ public class CocktailParty extends DisambiguationAlgorithm {
 				}
 
 				for (int b = 0; b < bestRemoved.length; b++) {
-					bestRemoved[b] = graph.isRemoved(b);
+					bestRemoved[b] = g.isRemoved(b);
 				}
 			}
 		}
 
 		if (isTracing) {			
-			traceFinalGraphStructure();
+			traceFinalGraphStructure(g);
 		}
 
 		logger.debug("Maximizing the minimum weighted degree. Best solution: " + bestValue);
 
 		GraphTracer.gTracer
 				.addStat(
-						graph.getName(),
+						g.getName(),
 						"Solution of Objective after Graph Algorithm (max. min-weighted-degree)",
 						Double.toString(bestValue));
 
 		HashSet<Integer> finalEntities = new HashSet<Integer>(bestRemovable);
 		finalEntities.addAll(bestNotRemovable);
 
-		double[][] allCloseness = new double[graph.getNodesCount()][graph
-				.getNodesCount()];
+		double[][] allCloseness = 
+		    new double[g.getNodesCount()][g.getNodesCount()];
 
 		for (int m : bestMentionDegrees.keySet()) {
-			double[] shortest = shortestPath.closeness(m, graph, bestRemoved);
+			double[] shortest = shortestPath.closeness(m, g, bestRemoved);
 			for (int e : finalEntities) {
 				allCloseness[e][m] = shortest[e];
 			}
@@ -262,9 +284,9 @@ public class CocktailParty extends DisambiguationAlgorithm {
 		int mentions = bestMentionDegrees.keySet().size();
 		int entities = finalEntities.size();
 		
-		debugAndTraceFinalDismabiguationProblemProperties(mentions, entities);
+		debugAndTraceFinalDismabiguationProblemProperties(g, mentions, entities);
 
-		graph.setIsRemovedFlags(bestRemoved);
+		g.setIsRemovedFlags(bestRemoved);
 
 		// Graph algorithm is done, check if further disambiguation is needed
 		boolean extraDisambiguationNeeded = false;
@@ -278,93 +300,313 @@ public class CocktailParty extends DisambiguationAlgorithm {
 
 		String stat = extraDisambiguationNeeded ? "Need final solving"
 				: "Solved after graph";
-		GraphTracer.gTracer.addStat(graph.getName(),
+		GraphTracer.gTracer.addStat(g.getName(),
 				"Status after graph algorithm", stat);
 
+		Map<Integer, Integer> graphMapping = new HashMap<Integer, Integer>();
 		if (!extraDisambiguationNeeded) {
 			logger.debug("No need for further disambiguation");
 			long end = System.currentTimeMillis();
 			double seconds = ((double) (end - start)) / 1000.0;
-			GraphTracer.gTracer.addStat(graph.getName(), "Runtime",
+			GraphTracer.gTracer.addStat(g.getName(), "Runtime",
 					String.format("%.4fs", seconds));
-			fillInSolutionObject(finalEntities, allCloseness);
-
+			// Fills in solution object, returns mapping in original graph
+			// as byproduct.
+			graphMapping = fillInSolutionObject(g, finalEntities, allCloseness);
 		} else {
 			logger.debug("Applying disambiguation");
-			GreedyHillClimbing search = new GreedyHillClimbing(graph,
+			GreedyHillClimbing search = new GreedyHillClimbing(g,
 					bestMentionDegrees.keySet(), finalEntities, bestRemoved,
-					10000);
-			Map<Integer, Integer> intidSolution = null;
-
+					1000);
 			String solver = useExhaustiveSearch ? "Using exhaustive search"
 					: "Using Random Local Search";
 
-			GraphTracer.gTracer.addStat(graph.getName(),
+			GraphTracer.gTracer.addStat(g.getName(),
 					"Final Solving Technique", solver);
 
 			if (useExhaustiveSearch) {
-				intidSolution = search.runExhaustive(graph.getName());
-				if (intidSolution == null) {
-					intidSolution = search.localSearch(graph.getName(),
-							graph.getNodesCount());
+			  graphMapping = search.runExhaustive(g.getName());
+				if (graphMapping == null) {
+				  graphMapping = search.localSearch(g.getName(),
+							g.getNodesCount());
 				}
 			} else {
-				intidSolution = search.localSearch(graph.getName(),
-						graph.getNodesCount());
+			  graphMapping = search.localSearch(g.getName(),
+						g.getNodesCount());
 			}
 
-			solution = new HashMap<ResultMention, List<ResultEntity>>();
 			for (int mentionNodeId : mentionDegrees.keySet()) {
-				GraphNode mentionNode = graph.getNode(mentionNodeId);
+				GraphNode mentionNode = g.getNode(mentionNodeId);
 				Mention mention = (Mention) mentionNode.getNodeData();
 
-				ResultMention rm = new ResultMention(graph.getName(),
+				ResultMention rm = new ResultMention(g.getName(),
 						mention.getMention(), mention.getCharOffset(),
 						mention.getCharLength());
 
-				if (intidSolution.containsKey(mentionNodeId)
-						&& intidSolution.get(mentionNodeId) != -1) {
+				if (graphMapping.containsKey(mentionNodeId)
+						&& graphMapping.get(mentionNodeId) != -1) {
 
-					int entityNodeId = intidSolution.get(mentionNodeId);
-					GraphNode entityNode = graph.getNode(entityNodeId);
+					int entityNodeId = graphMapping.get(mentionNodeId);
+					GraphNode entityNode = g.getNode(entityNodeId);
 					String entity = (String) entityNode.getNodeData();
 
-					/* OLD CONFIDENCE */
-					double mentionEntitySimilarity = mentionNode
-							.getSuccessors().get(entityNodeId);
+          double mentionEntitySimilarity = mentionNode
+              .getSuccessors().get(entityNodeId);
 					solution.put(rm, ResultEntity
 							.getResultEntityAsList(new ResultEntity(entity,
-									mentionEntitySimilarity)));
+							    mentionEntitySimilarity)));
 				} else {
 					solution.put(rm, ResultEntity
 							.getResultEntityAsList(ResultEntity
 									.getNoMatchingEntity()));
+					// -1 is a placeholder for OOKBE.
+					graphMapping.put(mentionNodeId, -1);
 				}
 			}
 
 			long end = System.currentTimeMillis();
 			double seconds = ((double) (end - start)) / 1000.0;
-			GraphTracer.gTracer.addStat(graph.getName(), "Runtime",
+			GraphTracer.gTracer.addStat(g.getName(), "Runtime",
 					String.format("%.4fs", seconds));
 		}
-		RunningTimer.end("CocktailPartyDisambiguation", moduleId);
+		
+    if (computeConfidence) {
+      Map<Integer, Map<Integer, Double>> entityConfidence = 
+          computeConfidence(
+              g, graphMapping, confSettings);
+      // Parts of the solution might already be filled when the graph
+      // was pruned before. Do not overwrite but add.
+      solution.putAll(
+          createConfidenceSolution(g, graphMapping, entityConfidence));     
+    }
+
+    RunningTimer.end("CocktailPartyDisambiguation", moduleId);
 		return solution;
 	}
 
-	protected int getDiameter() throws IOException {
+  /**
+	 * Removes dangling mentions (where no candidate entity has a coherence edge)
+	 * from gaph. They will influence the minimum weighted degree but can 
+	 * never be improved. Set the solution to the entity with the highest 
+	 * mention-entity weight.
+	 * 
+	 * @param solution Solution will be updated, setting the correct entity using
+	 *                local similarity for dangling mentions. 
+   * @return Node ids of nodes to remove.
+	 */
+  private TIntSet removeUnconnectedMentionEntityPairs(Graph g,
+      Map<ResultMention, List<ResultEntity>> solution) {
+    TIntSet mentionsToRemove = new TIntHashSet();
+    for (int mentionId : g.getMentionNodesIds().values()) {
+      GraphNode mentionNode = g.getNode(mentionId);
+      Mention mention = (Mention) mentionNode.getNodeData();
+      TIntDoubleHashMap entityCandidates = mentionNode.getSuccessors();
+      if (entityCandidates.size() == 0) {
+        continue;
+      }
+      // Remove all mentions without any entities that have coherence edges.
+      if (g.isLocalMention(mentionId)) {
+        mentionsToRemove.add(mentionId);
+        GraphTracer.gTracer.addMentionToDangling(
+            g.getName(), mention.getMention(), mention.getCharOffset());
+        // Set solution to best local candidate.
+        int bestEntity = getBestLocalCandidate(entityCandidates);
+        updateSolution(solution, g, mention, bestEntity, 
+                       entityCandidates.get(bestEntity));
+      }
+    }
+    TIntSet entitiesToRemove = new TIntHashSet();
+    // Remove entities that are only connected to removed mentions.
+    for (int entityId : g.getEntityNodesIds().values()) {
+      GraphNode entityNode = g.getNode(entityId);
+      TIntDoubleHashMap successors = entityNode.getSuccessors();
+      int removedCount = 0;
+      for (TIntDoubleIterator itr = successors.iterator(); 
+          itr.hasNext(); ) {
+        itr.advance();
+        int neighborId = itr.key();
+        if (mentionsToRemove.contains(neighborId)) {
+          ++removedCount;
+        }
+      }
+      if (removedCount == successors.size()) {
+        entitiesToRemove.add(entityId);
+      }
+    }
+    // Remove mentions + entity candidates from graph, trace.
+    TIntSet nodesToRemove = 
+        new TIntHashSet(mentionsToRemove.size() + entitiesToRemove.size());
+    nodesToRemove.addAll(mentionsToRemove);
+    nodesToRemove.addAll(entitiesToRemove);
+    return nodesToRemove;
+  }
+
+  /**
+   * Get the best candidate from the given entity-score map.
+   * 
+   */
+  private int getBestLocalCandidate(TIntDoubleHashMap entityCandidates) {
+    if (entityCandidates.size() == 0) {
+      return -100;
+    }
+    double bestWeight = -1.0;
+    int bestCandidate = -10;
+    for (TIntDoubleIterator itr = entityCandidates.iterator(); 
+        itr.hasNext(); ) {
+      itr.advance();
+      int entityId = itr.key();
+      double weight = itr.value();
+      if (weight > bestWeight) {
+        bestWeight = weight;
+        bestCandidate = entityId;
+      }     
+    }
+    return bestCandidate;
+  }
+    
+  private void updateSolution(
+      Map<ResultMention, List<ResultEntity>> solution, 
+      Graph g, Mention mention, 
+      int entityId, double score) {
+    ResultMention rm = new ResultMention(g.getName(),
+        mention.getMention(), mention.getCharOffset(),
+        mention.getCharLength());
+    String entity = (String) g.getNode(entityId).getNodeData();
+    ResultEntity re = new ResultEntity(entity, score);
+    // TODO(jh) If ranking is added to graph, add all candidates here.
+    solution.put(rm, ResultEntity.getResultEntityAsList(re));
+  }
+
+  private Graph createGraphByRemovingNodes(
+      final Graph g, final TIntSet nodesToRemove) {
+    return createGraphByRemovingNodesAndEdges(
+        g, nodesToRemove, new HashSet<Edge>());
+  }
+
+  private Graph createGraphByRemovingNodesAndEdges(
+      final Graph g, final TIntSet nodesToRemove, 
+      final Set<Edge> edgesToRemove) {
+    if (nodesToRemove.isEmpty() && edgesToRemove.isEmpty()) {
+      return g;
+    }
+    Graph pruned = new Graph(
+    g.getName(), g.getNodesCount() - nodesToRemove.size(), graphSettings.getAlpha());
+    pruned.setAverageEEweight(g.getAverageEEweight());
+    pruned.setAverageMEweight(g.getAverageMEweight());
+    // Add all non-removed nodes plus mention-entity edges.
+    TIntSet addedEntities = new TIntHashSet();
+    for (TObjectIntIterator<Mention> itr = g.getMentionNodesIds().iterator(); 
+        itr.hasNext(); ) {
+      itr.advance();
+      int mentionId = itr.value();
+      if (!nodesToRemove.contains(mentionId)) {
+        Mention m = itr.key();
+        pruned.addMentionNode(m);
+        GraphNode mentionNode = g.getNode(mentionId);     
+        for (TIntDoubleIterator entityItr = mentionNode.getSuccessors().iterator(); 
+            entityItr.hasNext(); ) {
+          entityItr.advance();
+          int entityId = entityItr.key();
+          if (!nodesToRemove.contains(entityId)) {
+            GraphNode entityNode = g.getNode(entityId);
+            String entityName = (String) entityNode.getNodeData();
+            if (!addedEntities.contains(entityId)) {
+              pruned.addEntityNode(entityName);
+              addedEntities.add(entityId);
+            }
+            Edge toAdd = new Edge(mentionId, entityId);
+            if (!edgesToRemove.contains(toAdd)) {
+              pruned.addEdge(m, entityName, entityItr.value());
+              pruned.addMentionEntitySim(
+                  m, entityName, 
+                  g.getMentionEntitySims(m).get(entityName));
+            }
+          }
+        }
+      } else {
+        logger.debug("Not adding node: " + g.getNode(mentionId));
+      }
+    }
+    // Add all edges between entities which have not been removed.
+    Set<Edge> addedEdges = new HashSet<Edge>();
+    for (TObjectIntIterator<String> itr = g.getEntityNodesIds().iterator(); 
+        itr.hasNext(); ) {
+      itr.advance();
+      int entityId = itr.value();
+      if (!nodesToRemove.contains(entityId)) {
+        String entityName = itr.key();
+        GraphNode entityNode = g.getNode(entityId);
+        for (TIntDoubleIterator entityItr = entityNode.getSuccessors().iterator(); 
+            entityItr.hasNext(); ) {
+          entityItr.advance();
+          int neighborId = entityItr.key();
+          GraphNode neighborNode = g.getNode(neighborId);
+          if (neighborNode.getType().equals(GraphNodeTypes.ENTITY) &&
+              !nodesToRemove.contains(neighborId)) {
+            String neighborName = (String) neighborNode.getNodeData();
+            Edge toAdd = new Edge(entityId, neighborId);
+            if (!addedEdges.contains(toAdd) && 
+                !edgesToRemove.contains(toAdd)) {
+              pruned.addEdge(entityName, neighborName, entityItr.value());
+              addedEdges.add(toAdd);
+            }
+          }
+        }
+      }
+    }
+    return pruned;
+  }
+
+  private Map<ResultMention, List<ResultEntity>> createConfidenceSolution(
+      Graph g, Map<Integer, Integer> graphMapping,
+      Map<Integer, Map<Integer, Double>> entityConfidence) {
+    Map<ResultMention, List<ResultEntity>> newSolution = 
+        new HashMap<ResultMention, List<ResultEntity>>();
+    for (Entry<Integer, Integer> entry : graphMapping.entrySet()) {
+      Integer mentionId = entry.getKey();
+      Integer entityId = entry.getValue();
+      Mention mention = (Mention) g.getNode(mentionId).getNodeData();
+      ResultMention rm = 
+          new ResultMention(g.getName(), mention.getMention(), 
+                            mention.getCharOffset(), mention.getCharLength());
+      // Use OOKBE with 0.95 confidence as default.
+      ResultEntity re = ResultEntity.getNoMatchingEntity();
+      re.setDisambiguationScore(0.95);
+      if (entityId >= 0) {
+        String entityName = (String) g.getNode(entityId).getNodeData();
+        double confidence = entityConfidence.get(mentionId).get(entityId);
+        re = new ResultEntity(entityName, confidence);
+      }
+      List<ResultEntity> resultEntities = new ArrayList<ResultEntity>(1);
+      resultEntities.add(re);
+      newSolution.put(rm, resultEntities);
+    }
+    return newSolution;
+  }
+
+  private Map<Integer, Map<Integer, Double>> computeConfidence(Graph g,
+      Map<Integer, Integer> graphIdMapping, 
+      ConfidenceSettings confSettings) {
+	  GraphConfidenceEstimator estimator = 
+	      new GraphConfidenceEstimator(g, graphIdMapping);
+    return estimator.estimate(confSettings);
+  }
+
+  protected int getDiameter() throws IOException {
 		return 1;
 	}
 
 	protected double calculateObjective(double absoluteMinimumWeightedDegree,
 			Map<Integer, Double> ewd) {
-		if (useNormalizedObjective) {
+		if (graphSettings.shouldUseNormalizedObjective()) {
 			return absoluteMinimumWeightedDegree / ewd.size();
 		} else {
 			return absoluteMinimumWeightedDegree;
 		}
 	}
 
-	private TIntLinkedList getEntityMentionsNodesIds(int entityNodeId) {
+	private TIntLinkedList getEntityMentionsNodesIds(
+	    Graph graph, int entityNodeId) {
 		TIntLinkedList mentions = new TIntLinkedList();
 
 		GraphNode entityNode = graph.getNode(entityNodeId);
@@ -382,7 +624,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 		return mentions;
 	}
 
-	private Map<String, Double> getConnectedEntities(int nodeId) {
+	private Map<String, Double> getConnectedEntities(Graph graph, int nodeId) {
 		Map<String, Double> entities = new HashMap<String, Double>();
 
 		GraphNode entityNode = graph.getNode(nodeId);
@@ -406,8 +648,17 @@ public class CocktailParty extends DisambiguationAlgorithm {
 		return entities;
 	}
 
-	private void fillInSolutionObject(HashSet<Integer> finalEntities,
-			double[][] allCloseness) {
+	/**
+	 * Fill in the solution, compute average closeness. Return the mapping
+	 * in the original graph as byproduct.
+	 * 
+	 * @param finalEntities
+	 * @param allCloseness
+	 * @return mention-entity mapping in the original graph.
+	 */
+	private Map<Integer, Integer> fillInSolutionObject(Graph graph, 
+	    HashSet<Integer> finalEntities, double[][] allCloseness) {
+	  Map<Integer, Integer> graphMapping = new HashMap<Integer, Integer>();
 		for (int mentionNodeId : bestMentionDegrees.keySet()) {
 			GraphNode mentionNode = graph.getNode(mentionNodeId);
 			Mention mention = (Mention) mentionNode.getNodeData();
@@ -421,6 +672,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 				solution.put(rm, ResultEntity
 						.getResultEntityAsList(ResultEntity
 								.getNoMatchingEntity()));
+				graphMapping.put(mentionNodeId, -1);
 			} else {
 				TIntDoubleHashMap successorsMap = mentionNode.getSuccessors();
 				TIntDoubleIterator successorsIterator = successorsMap
@@ -455,16 +707,16 @@ public class CocktailParty extends DisambiguationAlgorithm {
 						List<ResultEntity> res = new ArrayList<ResultEntity>(1);
 						res.add(new ResultEntity(entity, confidence));
 
+						graphMapping.put(mentionNodeId, entityNodeId);
 						solution.put(rm, res);
 					}
-
 				}
-
 			}
 		}
+		return graphMapping;
 	}
 
-	private void updateNeighboringNodes(int removableMinimumNodeId) {
+	private void updateNeighboringNodes(Graph graph, int removableMinimumNodeId) {
 		GraphNode node = graph.getNode(removableMinimumNodeId);
 		TIntDoubleHashMap successorsMap = node.getSuccessors();
 		TIntDoubleIterator successorsIterator = successorsMap.iterator();
@@ -512,7 +764,6 @@ public class CocktailParty extends DisambiguationAlgorithm {
 
 			} else {
 				// successor is an entity. update its weighted degree
-				edgeWeight *= entityAlpha;
 				if (entityWeightedDegrees.get(successorId) != null) {
 					double oldWeightedDegree = entityWeightedDegrees
 							.get(successorId);
@@ -533,7 +784,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 		} // end updating all the neighbor nodes
 	}
 
-	private int getRemovableMinimumNode() {
+	private int getRemovableMinimumNode(Graph graph) {
 		int removableMinimumNode = -1;
 
 		while (removableMinimumNode == -1 && !entitySortedDegrees.isEmpty()) {
@@ -543,7 +794,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 			double minimumWeightedDegree = Double
 					.parseDouble(minimumEntityString.split(":::")[1]);
 
-			boolean removable = isNodeRemovable(minimumEntity);
+			boolean removable = isNodeRemovable(graph, minimumEntity);
 			if (!removable) {
 				entityWeightedDegrees.remove(minimumEntity);
 				entitySortedDegrees.remove(minimumEntity + ":::"
@@ -559,7 +810,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 		return removableMinimumNode;
 	}
 
-	private boolean isNodeRemovable(int nodeId) {
+	private boolean isNodeRemovable(Graph graph, int nodeId) {
 		GraphNode node = graph.getNode(nodeId);
 		if (node.getType() == GraphNodeTypes.MENTION) // this is a mention node
 			return false;
@@ -582,7 +833,8 @@ public class CocktailParty extends DisambiguationAlgorithm {
 		return true;
 	}
 
-	protected void removeInitialEntitiesByDistance() {
+	protected void removeInitialEntitiesByDistance(
+	    Graph graph) {
 		ArrayList<Integer> toRemove = new ArrayList<Integer>();
 
 		double[][] allDistances = new double[graph.getNodesCount()][graph
@@ -610,7 +862,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 
 			double entityDistance = calcEntityDistance(allDistances[nodeId]);
 
-			if (entityDistance > threshold) {
+			if (entityDistance > distanceThreshold_) {
 				TIntDoubleHashMap successorsMap = node.getSuccessors();
 				TIntDoubleIterator successorsIterator = successorsMap
 						.iterator();
@@ -651,11 +903,12 @@ public class CocktailParty extends DisambiguationAlgorithm {
 			}
 		}
 
-		removeAndUpdateEntities(toRemove, checkMentionDegree, mentionMaxEntity,
+		removeAndUpdateEntities(graph, toRemove, checkMentionDegree, mentionMaxEntity,
 				mentionMaxWeightedDegree);
 	}
 
-	protected void removeAndUpdateEntities(List<Integer> toRemove,
+	protected void removeAndUpdateEntities(Graph graph, 
+	    List<Integer> toRemove,
 			Map<Integer, Integer> checkMentionDegree,
 			Map<Integer, Integer> mentionMaxEntity,
 			Map<Integer, Double> mentionMaxWeightedDegree) {
@@ -694,7 +947,6 @@ public class CocktailParty extends DisambiguationAlgorithm {
 					mentionDegrees.put(successorId, --oldDegree);
 				} else {
 					if (entityWeightedDegrees.get(successorId) != null) {
-						edgeWeight *= entityAlpha;
 						double oldWeightedDegree = entityWeightedDegrees
 								.get(successorId);
 
@@ -709,7 +961,6 @@ public class CocktailParty extends DisambiguationAlgorithm {
 					}
 
 					else if (notRemovableEntities.get(successorId) != null) {
-						edgeWeight *= entityAlpha;
 						double oldWeightedDegree = notRemovableEntities
 								.get(successorId);
 						double newWeightedDegree = oldWeightedDegree
@@ -759,7 +1010,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 		return entityDistance;
 	}
 
-	private double firstScanAndCalculateInitialObjective() throws IOException {
+	private double firstScanAndCalculateInitialObjective(Graph graph) throws IOException {
 		double initialObjective = Double.POSITIVE_INFINITY;
 
 		for (GraphNode node : graph.getNodes()) {
@@ -805,7 +1056,9 @@ public class CocktailParty extends DisambiguationAlgorithm {
 	}
 
 	
-	private void debugAndTraceInitialGraphProperties(int diameter,
+	private void debugAndTraceInitialGraphProperties(Graph graph, 
+	    int diameter,
+	    double threshold,
 			double globalAverageWeight) {
 		logger.debug("Using " + this.getClass() + " to solve");
 		logger.debug("Diameter: " + diameter);
@@ -828,7 +1081,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 				Long.toString(graph.getEdgesCount()));
 	}
 
-	private void traceIntitialGraphStructure() {
+	private void traceIntitialGraphStructure(Graph graph) {
 		for (int menNodeId : mentionDegrees.keySet()) {
 			GraphNode menNode = graph.getNode(menNodeId);
 			Mention mention = (Mention) menNode.getNodeData();
@@ -855,13 +1108,13 @@ public class CocktailParty extends DisambiguationAlgorithm {
 				GraphTracer.gTracer.addCandidateEntityToOriginalGraph(
 						graph.getName(), mention.getIdentifiedRepresentation(),
 						entity, weight, sim,
-						getConnectedEntities(successorNodeId));
+						getConnectedEntities(graph, successorNodeId));
 
 			}
 		}
 	}
 
-	private void debugAndTraceInitialDismabiguationProblemProperties() {
+	private void debugAndTraceInitialDismabiguationProblemProperties(Graph graph) {
 		logger.debug("Initial number of entities: "
 				+ entitySortedDegrees.size());
 		logger.debug("Initial number of mentions: "
@@ -877,7 +1130,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 	}
 
 	private void debugAndTraceFinalDismabiguationProblemProperties(
-			int mentions, int entities) {
+	    Graph graph, int mentions, int entities) {
 
 		logger.debug("Number of nodes in the final solution: ");
 		logger.debug("Mentions " + mentions);
@@ -889,7 +1142,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 				"Final Number of Entities", Integer.toString(entities));
 	}
 
-	private void traceCleanedGraphStructure() {
+	private void traceCleanedGraphStructure(Graph graph) {
 
 		for (int menNodeId : mentionDegrees.keySet()) {
 
@@ -925,9 +1178,10 @@ public class CocktailParty extends DisambiguationAlgorithm {
 
 	}
 
-	private void traceEntityRemovalStep(int removableMinimumNode,
+	private void traceEntityRemovalStep(Graph graph, 
+	    int removableMinimumNode,
 			double removableMinimumWeightedDegree) {
-		TIntLinkedList entityMentions = getEntityMentionsNodesIds(removableMinimumNode);
+		TIntLinkedList entityMentions = getEntityMentionsNodesIds(graph, removableMinimumNode);
 		GraphNode node = graph.getNode(removableMinimumNode);
 		String entity = (String) node.getNodeData();
 		List<String> entityMentionsStringsIds = new LinkedList<String>();
@@ -943,7 +1197,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 				removableMinimumWeightedDegree, entityMentionsStringsIds);
 	}
 
-	private void traceFinalGraphStructure() {
+	private void traceFinalGraphStructure(Graph graph) {
 		for (int menNodeId : mentionDegrees.keySet()) {
 
 			GraphNode menNode = graph.getNode(menNodeId);
@@ -966,8 +1220,7 @@ public class CocktailParty extends DisambiguationAlgorithm {
 							.containsKey(successorNodeId)) {
 						weight = notRemovableEntities.get(successorNodeId);
 					} else {
-						weight = -1; // weight will be taken from the
-										// removal steps
+						weight = GraphTracer.gTracer.getRemovedEntityDegree(graph.getName(), (String) graph.getNode(successorNodeId).getNodeData());
 					}
 
 					GraphNode entityNode = graph.getNode(successorNodeId);
@@ -981,5 +1234,30 @@ public class CocktailParty extends DisambiguationAlgorithm {
 
 			}
 		}
+    GraphTracer.gTracer.cleanRemovalSteps(graph.getName());
+	}
+	
+	class Edge {
+	  int source;
+	  int target;
+
+    public Edge(int x, int y) {
+	    source = Math.min(x, y);
+	    target = Math.max(x, y);
+	  }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o instanceof Edge) {
+        Edge e = (Edge) o;
+        return source == e.source && target == e.target;
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return source * target;
+    }
 	}
 }

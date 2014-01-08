@@ -67,7 +67,11 @@ public class KOREEntityEntitySimilarityMeasure
           //}
         }
         
-        double kpWeight = Math.min(kwc.getCombinedKeyphraseMiIdfWeight(a, kpA), kwc.getCombinedKeyphraseMiIdfWeight(b, kpB));
+        double kpASourceWeight = kwc.getKeyphraseSourceWeight(a, kpA);
+        double kpBSourceWeight = kwc.getKeyphraseSourceWeight(b, kpB);
+        double kpWeight = 
+            Math.min(kpASourceWeight * kwc.getCombinedKeyphraseMiIdfWeight(a, kpA),
+                     kpBSourceWeight * kwc.getCombinedKeyphraseMiIdfWeight(b, kpB));
         double psimd = kwc.getKeywordWeightSum(a, kpA) + kwc.getKeywordWeightSum(b, kpB) - psimn;
         if (psimd != 0.0) {
           double kpJaccardSim = (psimn / psimd);        
@@ -86,26 +90,25 @@ public class KOREEntityEntitySimilarityMeasure
     }
     
     double denom = 0.0;
-    
-    double[] kpwA = kwc.getKeyphraseWeights(a);
-    double[] kpwB = kwc.getKeyphraseWeights(b);
-    for (double wa : kpwA) {
-      denom += wa;
-    }
-    
-    for (double wb : kpwB) {
-      denom += wb;
-    }
-    
     int[] kpsA = kwc.getEntityKeyphraseIds(a);
+    for (int kp : kpsA) {
+      denom += kwc.getKeyphraseSourceWeight(a, kp) * kwc.getCombinedKeyphraseMiIdfWeight(a, kp);
+    }
+    
     int[] kpsB = kwc.getEntityKeyphraseIds(b);
+    for (int kp : kpsB) {
+      denom += kwc.getKeyphraseSourceWeight(b, kp) * kwc.getCombinedKeyphraseMiIdfWeight(b, kp);
+    }
     
     if (!(tracer.eeTracing() instanceof NullEntityEntityTracing)) {
       collectTracingInfo(a, b, 
           kpsA, kpsB, n / denom, matchesA, matchesB, kwc);
     }
         
-    double sim = n / denom;   
+    double sim = 0.0;    
+    if (denom > 0) {
+      sim = n / denom;   
+    }
     return sim;
   }
 	

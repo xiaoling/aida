@@ -23,37 +23,38 @@ public class CocktailPartyDisambiguationSettings extends DisambiguationSettings 
     
   private static final long serialVersionUID = 5867674989478781057L;
   
-  public static final List<String[]> coherenceRobustnessSimConfigs = 
-      Arrays.asList(new String[][] {
-          new String[] { "UnnormalizedKeyphrasesBasedMISimilarity", "KeyphrasesContext", "0.9492796347473327" },
-          new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "0.050720365252667446" }          
-      });
-
   public CocktailPartyDisambiguationSettings() throws MissingSettingException {
-    setAlpha(0.6);
+    getGraphSettings().setAlpha(0.6);
     setTracingTarget(TracingTarget.WEB_INTERFACE);
      
     setDisambiguationTechnique(TECHNIQUE.GRAPH);
     setDisambiguationAlgorithm(ALGORITHM.COCKTAIL_PARTY_SIZE_CONSTRAINED);
-    setUseExhaustiveSearch(true);
-    setUseNormalizedObjective(true);
-    setEntitiesPerMentionConstraint(5);
-    setUseCoherenceRobustnessTest(true);
-    setCohRobustnessThreshold(0.9);
+    getGraphSettings().setUseExhaustiveSearch(true);
+    getGraphSettings().setUseNormalizedObjective(true);
+    getGraphSettings().setEntitiesPerMentionConstraint(5);
+    getGraphSettings().setUseCoherenceRobustnessTest(true);
+    getGraphSettings().setCohRobustnessThreshold(0.9);
     
     List<String[]> cohConfigs = new LinkedList<String[]>();
     cohConfigs.add(new String[] { "MilneWittenEntityEntitySimilarity", "1.0" });
 
     SimilaritySettings switchedKPsettings = 
         new SimilaritySettings(
-            LocalDisambiguationSettings.simConfigs, 
+            LocalDisambiguationSettings.getSimConfigs(), 
             cohConfigs, LocalDisambiguationSettings.priorWeight);
     switchedKPsettings.setIdentifier("SwitchedKP");
     switchedKPsettings.setPriorThreshold(0.9);
     setSimilaritySettings(switchedKPsettings);
         
-    SimilaritySettings unnormalizedKPsettings = new SimilaritySettings(coherenceRobustnessSimConfigs, null, 0.0);
+    SimilaritySettings unnormalizedKPsettings = new SimilaritySettings(getCoherenceRobustnessSimConfigs(), null, 0.0);
     switchedKPsettings.setIdentifier("CoherenceRobustnessTest");
-    setCoherenceSimilaritySetting(unnormalizedKPsettings);
+    getGraphSettings().setCoherenceSimilaritySetting(unnormalizedKPsettings);
+  }
+  
+  public static List<String[]> getCoherenceRobustnessSimConfigs() { 
+      return Arrays.asList(new String[][] {
+          new String[] { "UnnormalizedKeyphrasesBasedMISimilarity", "KeyphrasesContext", "0.8360808680254525" },
+          new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "0.16391913197454755" }          
+      });
   }
 }

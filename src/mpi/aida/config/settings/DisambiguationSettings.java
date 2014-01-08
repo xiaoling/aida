@@ -1,6 +1,8 @@
 package mpi.aida.config.settings;
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
 import mpi.aida.graph.similarity.util.SimilaritySettings;
 import mpi.experiment.trace.GraphTracer.TracingTarget;
@@ -13,12 +15,6 @@ import mpi.experiment.trace.GraphTracer.TracingTarget;
 public class DisambiguationSettings implements Serializable {
 
   private static final long serialVersionUID = 1210739181527236465L;
-
-  /** 
-   * Balances the mention-entity edge weights (alpha) 
-   * and the entity-entity edge weights (1-alpha)
-   */
-  private double alpha = 0;
 
   /**
    * Technique to solve the disambiguation graph with. Most commonly this
@@ -37,48 +33,9 @@ public class DisambiguationSettings implements Serializable {
   private Settings.ALGORITHM disambiguationAlgorithm = null;
 
   /**
-   * Set to true to use exhaustive search in the final solving stage of
-   * ALGORITHM.COCKTAIL_PARTY. Set to false to do a hill-climbing search
-   * from a random starting point.
-   */
-  private boolean useExhaustiveSearch = false;
-
-  /**
-   * Set to true to normalize the minimum weighted degree in the 
-   * ALGORITHM.COCKTAIL_PARTY by the number of graph nodes. This prefers
-   * smaller solutions.
-   */
-  private boolean useNormalizedObjective = false;
-
-  /**
    * Settings to compute the edge-weights of the disambiguation graph.
    */
   private SimilaritySettings similaritySettings = null;
-  
-  /**
-   * Settings to compute the initial mention-entity edge weights when
-   * using coherence robustness.
-   */
-  private SimilaritySettings coherenceSimilaritySetting = null;
-
-  /**
-   * Number of candidates to keep for for 
-   * ALGORITHM.COCKTAIL_PARTY_SIZE_CONSTRAINED.
-   */
-  private int entitiesPerMentionConstraint = 5;
-  
-  /**
-   * Set to true to enable the coherence robustness test, fixing mentions
-   * with highly similar prior and similarity distribution to the most
-   * promising candidate before running the graph algorithm.
-   */
-  private boolean useCoherenceRobustnessTest = true;
-
-  /**
-   * Threshold of the robustness test, below which the the L1-norm between
-   * prior and sim results in the fixing of the entity candidate.
-   */
-  private double cohRobustnessThreshold = 0;
   
   /**
    * Maximum (global) rank of the entity according to the entity_rank table.
@@ -87,7 +44,7 @@ public class DisambiguationSettings implements Serializable {
    */
   private double maxEntityRank = 1.0;
   
-  private double nullMappingThresholdFactor = -1.0;
+  private double nullMappingThreshold = -1.0;
   
   private boolean includeNullAsEntityCandidate = false;
   
@@ -97,6 +54,32 @@ public class DisambiguationSettings implements Serializable {
 
   private TracingTarget tracingTarget = null;
   
+  /**
+   * Settings to use for graph computation.
+   */
+  private GraphSettings graphSettings;
+  
+  /**
+   * If true, compute the confidence of the mapping instead of assigning
+   * the local (mention-entity) similarity as score.
+   */
+  private boolean computeConfidence = false;
+    
+  /**
+   * Settings to use for confidence computation.
+   */
+  private ConfidenceSettings confidenceSettings;
+  
+  /**
+   * Number of chunks to process in parallel.
+   */
+  private int numChunkThreads = 4;  
+  
+  public DisambiguationSettings() {
+    graphSettings = new GraphSettings();
+    confidenceSettings = new ConfidenceSettings();
+  }
+          
   public void setStoreFile(String path) {
     this.storeFile = path;
   }
@@ -129,22 +112,6 @@ public class DisambiguationSettings implements Serializable {
     this.disambiguationAlgorithm = disambiguationAlgorithm;
   }
 
-  public boolean shouldUseExhaustiveSearch() {
-    return useExhaustiveSearch;
-  }
-
-  public void setUseExhaustiveSearch(boolean useExhaustiveSearch) {
-    this.useExhaustiveSearch = useExhaustiveSearch;
-  }
-
-  public double getAlpha() {
-    return alpha;
-  }
-
-  public void setAlpha(double alpha) {
-    this.alpha = alpha;
-  }
-
   public SimilaritySettings getSimilaritySettings() {
     return similaritySettings;
   }
@@ -153,52 +120,12 @@ public class DisambiguationSettings implements Serializable {
     this.similaritySettings = similaritySettings;
   }
 
-  public SimilaritySettings getCoherenceSimilaritySetting() {
-    return coherenceSimilaritySetting;
-  }
-
-  public void setCoherenceSimilaritySetting(SimilaritySettings similaritySettings) {
-    this.coherenceSimilaritySetting = similaritySettings;
-  }
-
-  public int getEntitiesPerMentionConstraint() {
-    return entitiesPerMentionConstraint;
-  }
-
-  public void setEntitiesPerMentionConstraint(int entitiesPerMentionConstraint) {
-    this.entitiesPerMentionConstraint = entitiesPerMentionConstraint;
-  }
-
-  public double getCohRobustnessThreshold() {
-    return cohRobustnessThreshold;
-  }
-
-  public void setCohRobustnessThreshold(double cohRobustnessThreshold) {
-    this.cohRobustnessThreshold = cohRobustnessThreshold;
-  }
-
-  public boolean shouldUseNormalizedObjective() {
-    return useNormalizedObjective;
-  }
-
-  public void setUseNormalizedObjective(boolean useNormalizedObjective) {
-    this.useNormalizedObjective = useNormalizedObjective;
+  public double getNullMappingThreshold() {
+    return nullMappingThreshold;
   }
   
-  public boolean shouldUseCoherenceRobustnessTest() {
-    return useCoherenceRobustnessTest;
-  }
-
-  public void setUseCoherenceRobustnessTest(boolean useCoherenceRobustnessTest) {
-    this.useCoherenceRobustnessTest = useCoherenceRobustnessTest;
-  }
-
-  public double getNullMappingThresholdFactor() {
-    return nullMappingThresholdFactor;
-  }
-  
-  public void setNullMappingThresholdFactor(double nullMappingThresholdFactor) {
-    this.nullMappingThresholdFactor = nullMappingThresholdFactor;
+  public void setNullMappingThreshold(double nullMappingThreshold) {
+    this.nullMappingThreshold = nullMappingThreshold;
   }
 
   public boolean isIncludeNullAsEntityCandidate() {
@@ -223,5 +150,62 @@ public class DisambiguationSettings implements Serializable {
 
   public void setMaxEntityRank(double maxEntityRank) {
     this.maxEntityRank = maxEntityRank;
+  }
+
+  public boolean shouldComputeConfidence() {
+    return computeConfidence;
+  }
+
+  public void setComputeConfidence(boolean computeConfidence) {
+    this.computeConfidence = computeConfidence;
+  }
+
+  public ConfidenceSettings getConfidenceSettings() {
+    return confidenceSettings;
+  }
+
+  public void setConfidenceSettings(ConfidenceSettings confidenceSettings) {
+    this.confidenceSettings = confidenceSettings;
+  }
+
+  public GraphSettings getGraphSettings() {
+    return graphSettings;
+  }
+
+  public void setGraphSettings(GraphSettings graphSettings) {
+    this.graphSettings = graphSettings;
+  }
+  
+  public int getNumChunkThreads() {
+    return numChunkThreads;
+  }
+
+  public void setNumChunkThreads(int numChunkThreads) {
+    this.numChunkThreads = numChunkThreads;
+  }
+
+  public Map<String, Object> getAsMap() {
+    Map<String, Object> s = new HashMap<String, Object>();
+    if (disambiguationTechnique != null) {
+      s.put("disambiguationTechnique", disambiguationTechnique.toString());
+    }
+    if (disambiguationAlgorithm != null) {
+      s.put("disambiguationAlgorithm", disambiguationAlgorithm.toString());
+    }
+    s.put("maxEntityRank", String.valueOf(maxEntityRank));
+    s.put("nullMappingThreshold", String.valueOf(nullMappingThreshold));
+    s.put("includeNullAsEntityCandidate", String.valueOf(includeNullAsEntityCandidate));
+    s.put("includeContextMentions", String.valueOf(includeContextMentions));
+    s.put("computeConfidence", String.valueOf(computeConfidence));
+    if (similaritySettings != null) {
+      s.put("similaritySettings", similaritySettings.getAsMap());
+    }
+    if (confidenceSettings != null) {
+      s.put("confidenceSettings", confidenceSettings.getAsMap());
+    }
+    if (graphSettings != null) {
+      s.put("graphSettings", graphSettings.getAsMap());
+    }
+    return s;
   }
 }

@@ -49,8 +49,6 @@ public class EnsembleMentionEntitySimilarity {
 
   private SimilaritySettings settings;
 
-  private String docId = null;
-
   private Tracer tracer = null;
 
   /**
@@ -60,23 +58,22 @@ public class EnsembleMentionEntitySimilarity {
    * @param entities
    * @param context
    * @param settings
-   * @param docId
    * @param tracer
    * @throws Exception
    */
-  public EnsembleMentionEntitySimilarity(Mentions mentions, Entities entities, Context context, SimilaritySettings settings, String docId, Tracer tracer) throws Exception {
+  public EnsembleMentionEntitySimilarity(Mentions mentions, Entities entities, Context context, SimilaritySettings settings, Tracer tracer) throws Exception {
     Map<Mention, Context> sameContexts = new HashMap<Mention, Context>();
     for (Mention m : mentions.getMentions()) {
       sameContexts.put(m, context);
     }
-    init(mentions, entities, sameContexts, settings, docId, tracer);
+    init(mentions, entities, sameContexts, settings, tracer);
   }
   
-  public EnsembleMentionEntitySimilarity(Mentions mentions, Entities entities, Map<Mention, Context> mentionsContexts, SimilaritySettings settings, String docId, Tracer tracer) throws Exception {
-    init(mentions, entities, mentionsContexts, settings, docId, tracer);
+  public EnsembleMentionEntitySimilarity(Mentions mentions, Entities entities, Map<Mention, Context> mentionsContexts, SimilaritySettings settings, Tracer tracer) throws Exception {
+    init(mentions, entities, mentionsContexts, settings, tracer);
   }
 
-  private void init(Mentions mentions, Entities entities, Map<Mention, Context> mentionsContexts, SimilaritySettings settings, String docId, Tracer tracer) throws Exception {
+  private void init(Mentions mentions, Entities entities, Map<Mention, Context> mentionsContexts, SimilaritySettings settings, Tracer tracer) throws Exception {
     this.settings = settings;
     double prior = settings.getPriorWeight();
     Set<String> mentionNames = new HashSet<String>();
@@ -85,7 +82,7 @@ public class EnsembleMentionEntitySimilarity {
     }
     pp = new MaterializedPriorProbability(mentionNames);
     pp.setWeight(prior);
-    mes = settings.getMentionEntitySimilarities(entities, docId, tracer);
+    mes = settings.getMentionEntitySimilarities(entities, tracer);
     // adjust weights when switched
     if (settings.getPriorThreshold() >= 0.0) {
       double[] nonPriorWeights = new double[mes.size() / 2];
@@ -112,7 +109,6 @@ public class EnsembleMentionEntitySimilarity {
       pp.setWeight(normWithPriorWeights[normWithPriorWeights.length - 1]);
     }
     eis = settings.getEntityImportances(entities);
-    this.docId = docId;
     this.tracer = tracer;
     mesMinMax = precomputeMinMax(mentions, mentionsContexts);
   }
@@ -141,7 +137,7 @@ public class EnsembleMentionEntitySimilarity {
         TIntDoubleHashMap mentionScores = new TIntDoubleHashMap();
         measureScores.put(m, mentionScores);
         for (Entity e : m.getCandidateEntities()) {
-          double sim = s.calcSimilarity(m, context, e, docId);
+          double sim = s.calcSimilarity(m, context, e);
           mentionScores.put(e.getId(), sim);
         }
       }
@@ -280,6 +276,11 @@ public class EnsembleMentionEntitySimilarity {
   }
 
   public static double rescale(double value, double min, double max) {
+    if (min == max) {
+      // No score or only one, return max.
+      return 1.0;
+    }
+    
     if (value < min) {
       logger.debug("Wrong normalization, " + 
                     value + " not in [" + min + "," + max + "], " +

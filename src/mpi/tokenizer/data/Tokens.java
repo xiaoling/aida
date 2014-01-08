@@ -12,13 +12,7 @@ public class Tokens implements Iterable<Token>, Serializable {
 
   private static final long serialVersionUID = 8015832523759790735L;
 
-  private String docId = null;
-
   private List<Token> tokens = null;
-
-  private List<String> problems = null;
-
-  private List<String> standfordTokens = null;
 
   private String originalStart = "";
 
@@ -28,17 +22,6 @@ public class Tokens implements Iterable<Token>, Serializable {
 
   public Tokens() {
     tokens = new LinkedList<Token>();
-    problems = new LinkedList<String>();
-  }
-
-  public Tokens(String docId) {
-    this.docId = docId;
-    tokens = new LinkedList<Token>();
-    problems = new LinkedList<String>();
-  }
-
-  public String getDocId() {
-    return docId;
   }
 
   public Token getToken(int position) {
@@ -114,18 +97,6 @@ public class Tokens implements Iterable<Token>, Serializable {
     return sb.toString();
   }
 
-  public void logProblem(String problem) {
-    problems.add(problem);
-  }
-
-  public boolean hasProblem() {
-    return problems.size() > 0;
-  }
-
-  public List<String> getProblems() {
-    return problems;
-  }
-
   public void setOriginalStart(String text) {
     originalStart = text;
   }
@@ -147,31 +118,6 @@ public class Tokens implements Iterable<Token>, Serializable {
     return tokens.iterator();
   }
 
-  private List<String> createStanfordList() {
-    int iterPosition = -1;
-    List<String> stokens = new LinkedList<String>();
-    String nextWord = null;
-    while (iterPosition + 1 < tokens.size()) {
-      iterPosition++;
-      int start = iterPosition;
-      Token t = tokens.get(iterPosition);
-      int sId = t.getStandfordId();
-      while (iterPosition + 1 < tokens.size() && tokens.get(iterPosition + 1).getStandfordId() == sId) {
-        iterPosition++;
-      }
-      nextWord = toText(start, iterPosition);
-      stokens.add(nextWord);
-    }
-    return stokens;
-  }
-
-  public List<String> getStanfordTokens() {
-    if (standfordTokens == null) {
-      standfordTokens = createStanfordList();
-    }
-    return standfordTokens;
-  }
-  
   public List<List<Token>> getSentenceTokens() {
     List<List<Token>> sentences = new ArrayList<List<Token>>();
     int currentSentenceId = -1;

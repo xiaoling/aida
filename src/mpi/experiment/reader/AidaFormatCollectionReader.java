@@ -10,16 +10,17 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import mpi.tools.javatools.util.FileUtils;
 import mpi.aida.access.DataAccess;
 import mpi.aida.data.Context;
 import mpi.aida.data.Entities;
-import mpi.aida.data.Entity;
 import mpi.aida.data.Mention;
 import mpi.aida.data.Mentions;
 import mpi.aida.data.PreparedInput;
+import mpi.aida.preparation.documentchunking.DocumentChunker;
+import mpi.aida.preparation.documentchunking.SingleChunkDocumentChunker;
 import mpi.tokenizer.data.Token;
 import mpi.tokenizer.data.Tokens;
+import mpi.tools.javatools.util.FileUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,17 +99,24 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
     } else {
       while (allDocIdsIterator.hasNext()) {
         String id = allDocIdsIterator.next();
-        counter++;
-        if (counter >= from && counter <= to) {
-          experimentDocIds.add(id);
-        } else if (counter >= to) {
-          break;
+        counter++;       
+        if ((from > 0) && (counter < from)) {
+          // Skip until from.
+          continue;
         }
+        if ((to > 0) && (counter > to)) {
+          // Break after all docs have been read.
+          break;
+        }        
+        experimentDocIds.add(id);
       }
     }
     preparedInputs = new ArrayList<PreparedInput>(experimentDocIds.size());
+    DocumentChunker singleChunker = new SingleChunkDocumentChunker();
     for (String docId : experimentDocIds) {
-      preparedInputs.add(new PreparedInput(docId, tokensMap.get(docId), getDocumentMentions(docId)));
+      PreparedInput preparedInput = 
+          singleChunker.process(docId, tokensMap.get(docId), getDocumentMentions(docId));
+      preparedInputs.add(preparedInput);
     }
   }
 
@@ -134,6 +142,7 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
     int sentence = -1;
     Tokens tokens = null;
     Mentions mentions = null;
+    String docId = null;
     try {
       int position = -1;
       int index = 0;
@@ -143,12 +152,11 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
       while (line != null) {
         if (line.startsWith("-DOCSTART-")) {
           int start = line.indexOf("(");
-          String docId = line.substring(start + 1, line.length() - 1);
           if (tokens != null) {
             setTokensPositions(mentions, tokens);
-            text.put(tokens.getDocId(), tokens.toText());
-            tokensMap.put(tokens.getDocId(), tokens);
-            mentionsMap.put(tokens.getDocId(), mentions);
+            text.put(docId, tokens.toText());
+            tokensMap.put(docId, tokens);
+            mentionsMap.put(docId, mentions);
             index = 0;
             position = -1;
             List<String> content = new LinkedList<String>();
@@ -157,7 +165,8 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
               content.add(token.getOriginal());
             }
           }
-          tokens = new Tokens(docId);
+          docId = line.substring(start + 1, line.length() - 1);
+          tokens = new Tokens();
           allDocIds.add(docId);
           mentions = new Mentions();
           sentence = 0;
@@ -175,7 +184,7 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
           String entity = null;
           String ner = null;
           if (data.length == 0) {
-            System.out.println("Line length 0 for doc id " + tokens.getDocId());
+            System.out.println("Line length 0 for doc id " + docId);
           } else if (data.length == 1) {
             word = data[0];
           } else if (data.length == 4) {
@@ -199,7 +208,7 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
             textMention = data[2];
             entity = data[3];
           } else {
-            logger.warn("line has wrong format " + line + " for docId " + tokens.getDocId());
+            logger.warn("line has wrong format " + line + " for docId " + docId);
           }
 
           if (punctuations.contains(word) && tokens.size() > 0) {
@@ -229,9 +238,9 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
           content.add(token.getOriginal());
         }
         setTokensPositions(mentions, tokens);
-        text.put(tokens.getDocId(), tokens.toText());
-        tokensMap.put(tokens.getDocId(), tokens);
-        mentionsMap.put(tokens.getDocId(), mentions);
+        text.put(docId, tokens.toText());
+        tokensMap.put(docId, tokens);
+        mentionsMap.put(docId, mentions);
       }
       breader.close();
     } catch (Exception e) {
@@ -327,7 +336,7 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
     if (!includeEmptyMentions) {
       Mentions mentionsToInclude = new Mentions();
       for (Mention m : mentions.getMentions()) {
-        if (!m.getGroundTruthResult().equals(Entity.OOKBE)) {
+        if (!Entities.isOokbEntity(m.getGroundTruthResult())) {
           mentionsToInclude.addMention(m);
         }
       }

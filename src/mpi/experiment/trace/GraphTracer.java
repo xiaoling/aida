@@ -475,9 +475,12 @@ public class GraphTracer {
 
 			String uriString = "NO_METADATA";
       String displayString = te.entity;
-      if (entitiesMetaData != null) {
-        uriString = entitiesMetaData.get(te.entity).getUrl();//Char.encodeURIPathComponent(entityMetaData.getUrl());
-        displayString = Char.toHTML(entitiesMetaData.get(te.entity).getHumanReadableRepresentation());
+      if (entitiesMetaData != null && entitiesMetaData.size() > 0) {
+        EntityMetaData md = entitiesMetaData.get(te.entity);
+        if (md != null) {
+          uriString = entitiesMetaData.get(te.entity).getUrl();//Char.encodeURIPathComponent(entityMetaData.getUrl());
+          displayString = Char.toHTML(entitiesMetaData.get(te.entity).getHumanReadableRepresentation());
+        }
       }
             
 			String entityAnchor = "<a target='_blank' href='" + uriString + "'>" + displayString + "</a>";

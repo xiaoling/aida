@@ -14,8 +14,8 @@ public class TokenizerManager {
     TokenizerManager.getInstance();
   }
 
-  public static Tokens parse(String docId, String text, Tokenizer.type type, boolean lemmatize) {
-    return TokenizerManager.getInstance().parseText(docId, text, type, lemmatize);
+  public static Tokens tokenize(String text, Tokenizer.type type, boolean lemmatize) {
+    return TokenizerManager.getInstance().parseText(text, type, lemmatize);
   }
 
   private static TokenizerManager getInstance() {
@@ -43,25 +43,25 @@ public class TokenizerManager {
 
   }
 
-  private Tokens parseText(String docId, String text, Tokenizer.type type, boolean lemmatize) {
+  private Tokens parseText(String text, Tokenizer.type type, boolean lemmatize) {
     synchronized (manager) {      
       loadTokenizerForType(type);
     }
     switch (type) {
       case tokens:
-        return tokenize(docId, text, lemmatize);
+        return tokenize(text, lemmatize);
       case germantokens:
-        return tokenizeGerman(docId, text, lemmatize);
+        return tokenizeGerman(text, lemmatize);
       case pos:
-        return tokenizePOS(docId, text, lemmatize);
+        return tokenizePOS(text, lemmatize);
       case germanpos:
-        return tokenizeGermanPOS(docId, text, lemmatize);
+        return tokenizeGermanPOS(text, lemmatize);
       case ner:
-        return tokenizeNER(docId, text, lemmatize);
+        return tokenizeNER(text, lemmatize);
       case germanner:
-        return tokenizeGermanNER(docId, text, lemmatize);
+        return tokenizeGermanNER(text, lemmatize);
       case parse:
-        return tokenizePARSE(docId, text, lemmatize);
+        return tokenizePARSE(text, lemmatize);
       default:
         return null;
     }
@@ -116,32 +116,32 @@ public class TokenizerManager {
     }    
   }
 
-  private Tokens tokenize(String docId, String text, boolean lemmatize) {
-    return tokenizer.parse(text, docId, lemmatize);
+  private Tokens tokenize(String text, boolean lemmatize) {
+    return tokenizer.parse(text, lemmatize);
   }
   
-  private Tokens tokenizeGerman(String docId, String text, boolean lemmatize) {
-    return tokenizerGerman.parse(text, docId, lemmatize);
+  private Tokens tokenizeGerman(String text, boolean lemmatize) {
+    return tokenizerGerman.parse(text, lemmatize);
   }
 
-  private Tokens tokenizeNER(String docId, String text, boolean lemmatize) {
-    return tokenizerNER.parse(text, docId, lemmatize);
+  private Tokens tokenizeNER(String text, boolean lemmatize) {
+    return tokenizerNER.parse(text, lemmatize);
   }
   
-  private Tokens tokenizeGermanNER(String docId, String text, boolean lemmatize) {
-    return tokenizerGermanNER.parse(text, docId, lemmatize);
+  private Tokens tokenizeGermanNER(String text, boolean lemmatize) {
+    return tokenizerGermanNER.parse(text, lemmatize);
   }
 
-  private Tokens tokenizePOS(String docId, String text, boolean lemmatize) {
-    return tokenizerPOS.parse(text, docId, lemmatize);
+  private Tokens tokenizePOS(String text, boolean lemmatize) {
+    return tokenizerPOS.parse(text, lemmatize);
   }
   
-  private Tokens tokenizeGermanPOS(String docId, String text, boolean lemmatize) {
-    return tokenizerGermanPOS.parse(text, docId, lemmatize);
+  private Tokens tokenizeGermanPOS(String text, boolean lemmatize) {
+    return tokenizerGermanPOS.parse(text, lemmatize);
   }
 
-  private Tokens tokenizePARSE(String docId, String text, boolean lemmatize) {
-    return tokenizerParse.parse(text, docId, lemmatize);
+  private Tokens tokenizePARSE(String text, boolean lemmatize) {
+    return tokenizerParse.parse(text, lemmatize);
   }
 
 }

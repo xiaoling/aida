@@ -139,7 +139,7 @@ public class RunningTimer {
    * 
    * @param moduleId
    */
-  public static void end(String moduleId, Integer uniqueId) {
+  public static Long end(String moduleId, Integer uniqueId) {
     Long timestamp = System.currentTimeMillis();
     Map<Integer, Long> end = moduleEnd.get(moduleId);
     if (end == null) {
@@ -147,6 +147,8 @@ public class RunningTimer {
       moduleEnd.put(moduleId, end);
     }
     end.put(uniqueId, timestamp);
+    Long startTime = moduleStart.get(moduleId).get(uniqueId);
+    return timestamp - startTime;
   }
   
   private static String getStageKey(String moduleId, String stageId) {

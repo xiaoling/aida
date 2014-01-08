@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import mpi.aida.data.Context;
 import mpi.aida.data.Mentions;
@@ -27,6 +28,13 @@ public class AidaSingleFormatCollectionReader extends CollectionReader {
 
   protected Map<String, PreparedInput> documents_ = new HashMap<String, PreparedInput>();
   
+  private String[] docIds = null;
+  
+  public AidaSingleFormatCollectionReader(String collectionPath) throws IOException {
+    super(collectionPath, CollectionPart.ALL, new CollectionReaderSettings());
+    init();
+  }
+  
   public AidaSingleFormatCollectionReader(String collectionPath, CollectionPart cp, CollectionReaderSettings settings) throws IOException {
     super(collectionPath, cp, settings);
     init();
@@ -34,6 +42,12 @@ public class AidaSingleFormatCollectionReader extends CollectionReader {
 
   public AidaSingleFormatCollectionReader(String collectionPath, int from, int to, CollectionReaderSettings settings) throws IOException {
     super(collectionPath, from, to, settings);
+    init();
+  }
+  
+  public AidaSingleFormatCollectionReader(String collectionPath, String docIds, CollectionReaderSettings settings) throws IOException {
+    super(collectionPath, 0, 0, settings);
+    this.docIds = docIds.split(",");
     init();
   }
   
@@ -52,23 +66,42 @@ public class AidaSingleFormatCollectionReader extends CollectionReader {
       }
     }
     Collections.sort(aidaFiles, new FileComparator(usesIntegerDocIds()));
-    for (File aidaFile : aidaFiles)  {
-      ++docs;
-      if ((from > 0) && (docs < from)) {
-        // Skip until from.
-        continue;
+    if(docIds == null){
+      for (File aidaFile : aidaFiles)  {
+        ++docs;
+        if ((from > 0) && (docs < from)) {
+          // Skip until from.
+          continue;
+        }
+        if ((to > 0) && (docs > to)) {
+          // Break after all docs have been read.
+          break;
+        }
+        PreparedInput doc = getPreparedInputForFile(aidaFile);
+        if (docs % 1000 == 0) {
+          logger_.debug("Read " + docs + " docs.");
+        }
+        docIds_.add(doc.getDocId());
+        documents_.put(doc.getDocId(), doc);
       }
-      if ((to > 0) && (docs > to)) {
-        // Break after all docs have been read.
-        break;
+    }else{
+      for(File aidaFile : aidaFiles){
+        String fName = aidaFile.getName();
+        fName = fName.substring(0, fName.indexOf(".tsv"));
+        for(String docId : docIds){
+          if(docId.equalsIgnoreCase(fName)){
+            PreparedInput doc = getPreparedInputForFile(aidaFile);
+            if (docs % 1000 == 0) {
+              logger_.debug("Read " + docs + " docs.");
+            }
+            docIds_.add(doc.getDocId());
+            documents_.put(doc.getDocId(), doc);
+            break;
+          }
+        }
       }
-      PreparedInput doc = getPreparedInputForFile(aidaFile);
-      if (docs % 1000 == 0) {
-        logger_.debug("Read " + docs + " docs.");
-      }
-      docIds_.add(doc.getDocId());
-      documents_.put(doc.getDocId(), doc);
     }
+    
     logger_.info("Read " + docIds_.size() + " docs.");
   }
   
@@ -100,7 +133,9 @@ public class AidaSingleFormatCollectionReader extends CollectionReader {
 
   @Override
   public Context getDocumentContext(String docId) {
-    return documents_.get(docId).getContext();
+    PreparedInput p = documents_.get(docId);    
+    assert p.getChunksCount() == 1;
+    return documents_.get(docId).iterator().next().getContext();
   }
 
   @Override
@@ -110,7 +145,7 @@ public class AidaSingleFormatCollectionReader extends CollectionReader {
 
   @Override
   public String getText(String docId) {
-    return documents_.get(docId).getContext().toString();
+    return getDocumentContext(docId).toString();
   }
   
   public boolean usesIntegerDocIds() {
@@ -119,18 +154,18 @@ public class AidaSingleFormatCollectionReader extends CollectionReader {
 
   @Override
   protected int[] getCollectionPartFromTo(CollectionPart cp) {
-    return new int[] {0, docIds_.size() - 1 };
+    return new int[] {0, 0};
   }
 
   public Comparator<File> getComparator(boolean convertToInt) {
     return new FileComparator(convertToInt);
   }
   
-  public static void main(String[] args) throws IOException {
-    AidaSingleFormatCollectionReader r = new AidaSingleFormatCollectionReader("../aidaannotation/data/corpora/DNB/paragraphs_6_NE/Mono", 0, 10, new CollectionReaderSettings());
-    for (PreparedInput p : r) {
-      System.out.println(p.getDocId());
-      System.out.println(p.getTokens().toText());
+  public Map<String, String> getTextMap() {
+    Map<String, String> texts = new HashMap<String, String>();
+    for (Entry<String, PreparedInput> e : documents_.entrySet()) {
+      texts.put(e.getKey(), e.getValue().getTokens().toText());
     }
+    return texts;
   }
 }

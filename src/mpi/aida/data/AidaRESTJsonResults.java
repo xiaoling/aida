@@ -16,6 +16,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
+@SuppressWarnings("rawtypes")
 public class AidaRESTJsonResults {
 	private String jsonRepr;
 	private JSONObject jsonObj;
@@ -51,7 +52,7 @@ public class AidaRESTJsonResults {
 	public Map<String, Set<Type>> getEntitiesTypes(){
 		HashMap<String, Set<Type>> hshTypes = new HashMap<String, Set<Type>>();
 		JSONArray jTypes = (JSONArray)jsonObj.get("entityTypes");
-		Iterator itTypes = jTypes.iterator();
+    Iterator itTypes = jTypes.iterator();
 		while(itTypes.hasNext()){
 			JSONObject entType = (JSONObject)itTypes.next();
 			JSONArray jTmpArr = (JSONArray)entType.get("type");
@@ -98,8 +99,9 @@ public class AidaRESTJsonResults {
 		Iterator itMention = jArrMentions.iterator();
 		while(itMention.hasNext()){
 			JSONObject jMention = (JSONObject)itMention.next();
-			int offset = ((Long)jMention.get("offset")).intValue(); 
-			int length = ((Long)jMention.get("length")).intValue();
+			//TODO: Those variables are never used, why?
+			//int offset = ((Long)jMention.get("offset")).intValue(); 
+			//int length = ((Long)jMention.get("length")).intValue();
 			String name = (String)((JSONObject)jMention.get("bestEntity")).get("name");
 			double dScore = Double.parseDouble((String)((JSONObject)jMention.get("bestEntity")).get("disambiguationScore"));
 			ResultEntity rEntity = new ResultEntity(name, dScore);

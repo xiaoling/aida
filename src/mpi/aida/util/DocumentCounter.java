@@ -20,10 +20,11 @@ public class DocumentCounter extends Observable {
   
   private Map<String, DisambiguationResults> resultsMap;
   
-  public DocumentCounter(int total, String resultFilePath) {
+  public DocumentCounter(int total, String resultFilePath, Map<String, DisambiguationResults> resultsMap) {
     completed = 0;
     this.total = total;
     this.resultFilePath = resultFilePath;
+    this.resultsMap = resultsMap;
     startTime = System.currentTimeMillis();
   }
   
@@ -38,10 +39,6 @@ public class DocumentCounter extends Observable {
 
   public Map<String, DisambiguationResults> getResultsMap() {
     return resultsMap;
-  }
-  
-  public void setResultsMap(Map<String, DisambiguationResults> resultsMap) {
-    this.resultsMap = resultsMap;
   }
 
   public String getResultFilePath() {

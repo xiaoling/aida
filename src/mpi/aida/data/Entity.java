@@ -1,6 +1,8 @@
 package mpi.aida.data;
 
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 
 import mpi.tools.javatools.parsers.Char;
@@ -12,16 +14,18 @@ public class Entity implements Serializable, Comparable<Entity>, Cloneable {
   private String name;
   
   private List<String> surroundingMentionNames;
-
-  private int id = -1;
-
   
-  public static final String OOKBE = "--NME--";
+  private int id = 0;
 
+  public static final String OOKBE = "--OOKBE--";
+  
+  public static final String EXISTS = "--EXISTS--";
+  
+  private Collection<Entity> confusableEntities = new HashSet<Entity>();
   /**
    * Use this field to represent the mention-entity similarity computed with 
    * some method (not the score stored in the DB). This field will not be set 
-   * in the constructor. We set it later on, when we compute the similarity
+   * in the constructor. We set it later on, when we compute the similarity.
    */
   private double mentionEntitySimilarity;
 
@@ -76,6 +80,10 @@ public class Entity implements Serializable, Comparable<Entity>, Cloneable {
     return Entities.isOokbeName(name);
   }
 
+  /**
+   * @return The normalized name from an out-of-knowledge base entity, i.e.
+   *         the name in it's original form.
+   */
   public String getNMEnormalizedName() {
     String normName = name.replace("-"+OOKBE, "").replace(' ', '_');
     return normName;
@@ -87,5 +95,13 @@ public class Entity implements Serializable, Comparable<Entity>, Cloneable {
 
   public void setSurroundingMentionNames(List<String> surroundingMentionNames) {
     this.surroundingMentionNames = surroundingMentionNames;
+  }
+
+  public void setConfusableEntities(Collection<Entity> entities) {
+    confusableEntities = entities;
+  }
+  
+  public Collection<Entity> getConfusableEntities() {
+    return confusableEntities;
   }
 }

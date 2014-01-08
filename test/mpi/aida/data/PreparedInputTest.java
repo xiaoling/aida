@@ -16,7 +16,7 @@ public class PreparedInputTest {
 
   public PreparedInputTest() {
     AidaConfig.set("dataAccess", "testing");
-    AidaConfig.set(AidaConfig.CACHE_WORD_EXPANSIONS, "false");
+    AidaConfig.set(AidaConfig.CACHE_WORD_DATA, "false");
     AidaManager.init();
   }
   

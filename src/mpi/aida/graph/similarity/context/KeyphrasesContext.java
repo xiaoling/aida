@@ -181,8 +181,10 @@ public class KeyphrasesContext extends EntitiesContext {
     keyphraseSourceId2dweights = new TIntDoubleHashMap();
     if (keyphraseSourceWeights != null) {
       for (Entry<String, Double> e : keyphraseSourceWeights.entrySet()) {
-        keyphraseSourceId2dweights.put(
-            keyphraseSource2id.get(e.getKey()), e.getValue());
+        if (keyphraseSource2id.contains(e.getKey())) {
+          keyphraseSourceId2dweights.put(
+              keyphraseSource2id.get(e.getKey()), e.getValue());
+        }
       }
     }
         

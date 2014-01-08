@@ -238,9 +238,10 @@ public class SimilaritySettings implements Serializable {
   }
 
   public List<MentionEntitySimilarity> getMentionEntitySimilarities(
-      Entities entities, String docId, Tracer tracer) throws Exception {
+      Entities entities, Tracer tracer) throws Exception {
     List<MentionEntitySimilarity> sims = new LinkedList<MentionEntitySimilarity>();
     Map<String, MentionEntitySimilarityMeasure> measures = new HashMap<String, MentionEntitySimilarityMeasure>();
+    Map<String, EntitiesContext> contexts = new HashMap<String, EntitiesContext>();
 
     if (mentionEntitySimilarities != null) {
       for (String[] s : mentionEntitySimilarities) {
@@ -256,7 +257,7 @@ public class SimilaritySettings implements Serializable {
           }
         }
   
-        String entityClassName = "mpi.aida.graph.similarity.context." + s[1];
+        String contextClassName = "mpi.aida.graph.similarity.context." + s[1];
         double weight = Double.parseDouble(s[2]);
   
         MentionEntitySimilarityMeasure sim = measures.get(simClassName);
@@ -266,12 +267,19 @@ public class SimilaritySettings implements Serializable {
           measures.put(simClassName, sim);
         }
         
-        EntitiesContextSettings entitiesContextSettings = 
-            getEntitiesContextSettings(false);
-        EntitiesContext con = EntitiesContextCreator.getEntitiesContextCache().
-            getEntitiesContext(entityClassName, docId, entities, entitiesContextSettings);
+        EntitiesContext context = contexts.get(contextClassName);      
+        if (context == null) {
+            EntitiesContextSettings entitiesContextSettings = 
+                getEntitiesContextSettings(false);
+            context = (EntitiesContext) 
+                Class.forName(contextClassName).
+                getDeclaredConstructor(
+                    Entities.class, EntitiesContextSettings.class).newInstance(
+                        entities, entitiesContextSettings);     
+            contexts.put(contextClassName, context);
+        }
         
-        MentionEntitySimilarity mes = new MentionEntitySimilarity(sim, con, weight);
+        MentionEntitySimilarity mes = new MentionEntitySimilarity(sim, context, weight);
         sims.add(mes);
       }
     }
@@ -314,7 +322,9 @@ public class SimilaritySettings implements Serializable {
     } else if (eeIdentifier.equals("KeyphraseBasedEntityEntitySimilarity")) {
       return EntityEntitySimilarity.getKeyphraseBasedEntityEntitySimilarity(entities, settings, tracer);
     } else if (eeIdentifier.equals("KOREEntityEntitySimilarity")) {
-      return EntityEntitySimilarity.getKOREEntityEntitySimilarity(entities, settings, tracer);    
+      return EntityEntitySimilarity.getKOREEntityEntitySimilarity(entities, settings, tracer);
+//    } else if (eeIdentifier.equals("KORELSHEntityEntitySimilarity")) {
+//      return EntityEntitySimilarity.getKORELSHEntityEntitySimilarity(entities, settings, tracer);
     } else if (eeIdentifier.equals("TopKeyphraseBasedEntityEntitySimilarity")) {
       return EntityEntitySimilarity.getTopKeyphraseBasedEntityEntitySimilarity(entities, numberOfEntityKeyphrase, tracer);
     } else {
@@ -397,6 +407,7 @@ public class SimilaritySettings implements Serializable {
         String eiClassName = "mpi.aida.graph.similarity.importance." + eiSetting[0];
         EntityImportance ei = (EntityImportance) Class.forName(eiClassName).getDeclaredConstructor(Entities.class).newInstance(entities);
         ei.setWeight(Double.parseDouble(eiSetting[1]));
+        eis.add(ei);
       }
     }
     return eis;
@@ -584,5 +595,15 @@ public class SimilaritySettings implements Serializable {
       s.put("identifier", identifier);
     }
     return s;
+  }
+
+  
+  public List<String[]> getEntityImportancesSettings() {
+    return entityImportancesSettings;
+  }
+
+  
+  public void setEntityImportancesSettings(List<String[]> entityImportancesSettings) {
+    this.entityImportancesSettings = entityImportancesSettings;
   }
 }

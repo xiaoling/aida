@@ -14,7 +14,7 @@ import mpi.aida.AidaManager;
 import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
 import mpi.aida.data.Mention;
-import mpi.aida.data.PreparedInput;
+import mpi.aida.data.PreparedInputChunk;
 import mpi.aida.data.ResultEntity;
 import mpi.aida.data.ResultMention;
 import mpi.aida.graph.similarity.EnsembleMentionEntitySimilarity;
@@ -33,9 +33,9 @@ public class LocalDisambiguation implements Runnable {
   
 	protected SimilaritySettings ss;
 
-	protected PreparedInput input;
+	protected PreparedInputChunk input;
 
-	protected String docId;
+	protected String chunkId;
 
 	protected Map<String, Map<ResultMention, List<ResultEntity>>> solutions;
 
@@ -43,8 +43,7 @@ public class LocalDisambiguation implements Runnable {
 	
 	protected boolean includeContextMentions;
 	
-	// TODO(jhoffart) make this configurable. True should stay default.
-	protected boolean computeConfidence = true;
+	protected boolean computeConfidence;
 	
 	protected double maxEntityRank;
 
@@ -52,21 +51,24 @@ public class LocalDisambiguation implements Runnable {
 
 	private NumberFormat nf;
 	
-	public LocalDisambiguation(PreparedInput input, SimilaritySettings settings,
+	public LocalDisambiguation(PreparedInputChunk content, SimilaritySettings settings,
 			boolean includeNullAsEntityCandidate,
-			boolean includeContextMentions, double maxEntityRank, String docId,
-			Map<String, Map<ResultMention, List<ResultEntity>>> solutions, Tracer tracer)
+			boolean includeContextMentions, boolean computeConfidence, 
+			double maxEntityRank, String docId,
+			Map<String, Map<ResultMention, List<ResultEntity>>> solutions, 
+			Tracer tracer)
 			throws SQLException {
 	  nf = NumberFormat.getNumberInstance(Locale.ENGLISH);
 	  nf.setMaximumFractionDigits(2);
-	  logger.debug("Preparing '" + docId + "' (" + input.getMentions().getMentions().size() + " mentions)");
+	  logger.debug("Preparing '" + docId + "' (" + content.getMentions().getMentions().size() + " mentions)");
 
 		this.ss = settings;
-		this.docId = docId;
+		this.chunkId = docId;
 		this.solutions = solutions;
-		this.input = input;
+		this.input = content;
 		this.includeNullAsEntityCandidate = includeNullAsEntityCandidate;
 		this.includeContextMentions = includeContextMentions;
+		this.computeConfidence = computeConfidence;
 		this.maxEntityRank = maxEntityRank;
 		this.tracer = tracer;
 		
@@ -75,9 +77,8 @@ public class LocalDisambiguation implements Runnable {
 
 	@Override
 	public void run() {	  
-	  long beginTime = System.currentTimeMillis();
 	  try {
-      AidaManager.fillInCandidateEntities(docId, input.getMentions(),
+      AidaManager.fillInCandidateEntities(input.getMentions(),
           includeNullAsEntityCandidate, includeContextMentions, maxEntityRank);
     } catch (SQLException e) {
       logger.error("SQLException when getting candidates: " + 
@@ -90,25 +91,19 @@ public class LocalDisambiguation implements Runnable {
       logger.error("Error: " + e.getLocalizedMessage());
       e.printStackTrace();
     }
-		double runTime = (System.currentTimeMillis() - beginTime) / (double) 1000;
-		logger.info("Document '" + docId + "' done in " + nf.format(runTime) + "s");
 	}
 	
 	private EnsembleMentionEntitySimilarity prepapreMES() {
 		Entities entities = new Entities();
 		for (Mention mention : input.getMentions().getMentions()) {
 			MentionTracer mt = new MentionTracer(mention);
-			tracer.addMentionForDocId(docId, mention, mt);
+			tracer.addMention(mention, mt);
 			for (Entity entity : mention.getCandidateEntities()) {
 				EntityTracer et = new EntityTracer(entity.getName());
 				tracer.addEntityForMention(mention, entity.getName(), et);
 			}
 			entities.addAll(mention.getCandidateEntities());
 		}
-		
-		logger.info("Disambiguating '" + docId + 
-		         "' (" + input.getMentions().getMentions().size() + 
-		         " mentions, " + entities.size() + " entities)");
 		
 		if (includeNullAsEntityCandidate) {
 			entities.setIncludesOokbeEntities(true);
@@ -117,7 +112,7 @@ public class LocalDisambiguation implements Runnable {
 		EnsembleMentionEntitySimilarity mes = null;
 		try {
 			mes = new EnsembleMentionEntitySimilarity(input.getMentions(), entities, 
-			    input.getContext(), ss, docId, tracer);
+			    input.getContext(), ss, tracer);
 			return mes;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -172,12 +167,12 @@ public class LocalDisambiguation implements Runnable {
 			Collections.sort(entities);
 
 			// Fill solutions.
-			Map<ResultMention, List<ResultEntity>> docSolutions = solutions.get(docId);
+			Map<ResultMention, List<ResultEntity>> docSolutions = solutions.get(chunkId);
 			if (docSolutions == null) {
 				docSolutions = new HashMap<ResultMention, List<ResultEntity>>();
-				solutions.put(docId, docSolutions);
+				solutions.put(chunkId, docSolutions);
 			}
-			ResultMention rm = new ResultMention(docId, mention.getMention(), mention.getCharOffset(), mention.getCharLength());
+			ResultMention rm = new ResultMention(chunkId, mention.getMention(), mention.getCharOffset(), mention.getCharLength());
 			docSolutions.put(rm, entities);
 		}
 	}

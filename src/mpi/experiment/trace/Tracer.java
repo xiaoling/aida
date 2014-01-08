@@ -40,7 +40,7 @@ public class Tracer {
     mentions = new HashMap<Mention, MentionTracer>();
   }
 
-  public void addMentionForDocId(String docId, Mention m, MentionTracer mt) {
+  public void addMention(Mention m, MentionTracer mt) {
     if (mentionsList == null) {
       mentionsList = new LinkedList<MentionTracer>();
     }

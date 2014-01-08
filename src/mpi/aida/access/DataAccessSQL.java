@@ -9,7 +9,6 @@ import gnu.trove.map.hash.TIntObjectHashMap;
 import gnu.trove.map.hash.TObjectIntHashMap;
 import gnu.trove.set.hash.TIntHashSet;
 
-import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -24,6 +23,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 import mpi.aida.AidaManager;
+import mpi.aida.access.DataAccessSQLCache.EntityKeyphraseData;
 import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
 import mpi.aida.data.EntityMetaData;
@@ -36,6 +36,7 @@ import mpi.aida.util.YagoUtil.Gender;
 import mpi.tools.basics.Normalize;
 import mpi.tools.database.DBConnection;
 import mpi.tools.database.interfaces.DBStatementInterface;
+import mpi.tools.javatools.datatypes.Pair;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.slf4j.Logger;
@@ -157,6 +158,10 @@ public class DataAccessSQL implements DataAccessInterface {
       Entities entities, Map<String, Double> keyphraseSourceWeights,
       double minKeyphraseWeight, int maxEntityKeyphraseCount) {
     boolean useSources = keyphraseSourceWeights != null && !keyphraseSourceWeights.isEmpty();
+    KeyphrasesCache kpc = 
+        DataAccessSQLCache.singleton().
+        getEntityKeyphrasesCache(entities, keyphraseSourceWeights, minKeyphraseWeight,
+            maxEntityKeyphraseCount, useSources);
     
     // Create and fill return object with empty maps.
     Keyphrases keyphrases = new Keyphrases();
@@ -192,136 +197,83 @@ public class DataAccessSQL implements DataAccessInterface {
       return keyphrases;
     }
 
-    DBConnection con = null;
-    DBStatementInterface statement = null;
-    
-    try {
-      con = AidaManager.getConnectionForDatabase(
-          AidaManager.DB_AIDA, "Getting keyphrases");
-      String entityQueryString = StringUtils.join(entities.getUniqueIds(), ",");
-      statement = con.getStatement();
-
-      StringBuilder sql = new StringBuilder();
-      sql.append("SELECT entity, keyphrase, weight, keyphrase_tokens, " +
-                   "keyphrase_token_weights");
-      if (useSources) { 
-        sql.append(", source");
-      }
-      sql.append(" FROM ");
-      if (maxEntityKeyphraseCount > 0) {
-        sql.append("(SELECT ROW_NUMBER() OVER")
-           .append(" (PARTITION BY entity ORDER BY weight DESC) AS p,")
-           .append(" ek.entity, ek.keyphrase, ek.weight, ek.keyphrase_tokens,")
-           .append(" ek.keyphrase_token_weights FROM ")
-           .append(ENTITY_KEYPHRASES).append(" ek")
-           .append(" WHERE entity IN (").append(entityQueryString).append(")");        
-      } else {
-        sql.append(ENTITY_KEYPHRASES).append(" WHERE entity IN (")
-           .append(entityQueryString).append(")");
-      }
-      if (useSources) {
-        for (Entry<String, Double> sourceWeight : keyphraseSourceWeights.entrySet()) {
-          if (sourceWeight.getValue() == 0.0) {
-            sql.append(" AND source<>'").append(sourceWeight.getKey()).append("'");
-          }
-        }
-      }
-      if (minKeyphraseWeight > 0.0) {
-        sql.append(" AND weight > ").append(minKeyphraseWeight);
-      }
-      // Close nested query when limiting number of keyphrases per entity.
-      if (maxEntityKeyphraseCount > 0) {
-        sql.append(" ) g WHERE g.p <= ").append(maxEntityKeyphraseCount);        
-      }
-      ResultSet rs = statement.executeQuery(sql.toString());
-      TIntObjectHashMap<TIntHashSet> eKps = 
-          new TIntObjectHashMap<TIntHashSet>();
-      for (Entity e : entities) {
-        eKps.put(e.getId(), new TIntHashSet());
-      }
-      while (rs.next()) {
-        int entity = rs.getInt("entity");
-        int keyphrase = rs.getInt("keyphrase");
-        double keyphraseWeight = rs.getDouble("weight");
-                
-        // Add keyphrase.
-        TIntHashSet kps = eKps.get(entity);
-        if (kps == null) {
-          kps = new TIntHashSet();
-          eKps.put(entity, kps);
-        }
-        kps.add(keyphrase);
+    TIntObjectHashMap<TIntHashSet> eKps = 
+        new TIntObjectHashMap<TIntHashSet>();
+    for (Entity e : entities) {
+      eKps.put(e.getId(), new TIntHashSet());
+    }
         
-        // Add keyphrase weight.
-        TIntDoubleHashMap keyphrase2mi = entity2keyphrase2mi.get(entity);
-        if (keyphrase2mi == null) {
-          keyphrase2mi = new TIntDoubleHashMap();
-          entity2keyphrase2mi.put(entity, keyphrase2mi);
-        }
-        keyphrase2mi.put(keyphrase, keyphraseWeight);
-        
-        // Add keywords and weights.
-        Integer[] tokens = 
-            (Integer[]) rs.getArray("keyphrase_tokens").getArray();
-        Array tokenWeightsArray = rs.getArray("keyphrase_token_weights");
-        Double[] tokenWeights = new Double[0];
-        if (tokenWeightsArray != null) {
-          tokenWeights = 
-            (Double[]) rs.getArray("keyphrase_token_weights").getArray();
-        }
-        TIntDoubleHashMap keyword2mi = entity2keyword2mi.get(entity);
-        if (keyword2mi == null) {
-          keyword2mi = new TIntDoubleHashMap();
-          entity2keyword2mi.put(entity, keyword2mi);
-        }
-        int[] tokenIds = new int[tokens.length];
-        for (int i = 0; i < tokens.length; ++i) {
-          tokenIds[i] = tokens[i];
-          // Fill missing weights with 0.
-          Double weight = 0.0;
-          if (i < tokenWeights.length) {
-            weight = tokenWeights[i];
-          }
-          keyword2mi.put(tokenIds[i], weight);
-        }
-        if (!keyphraseTokens.containsKey(keyphrase)) {
-          keyphraseTokens.put(keyphrase, tokenIds);
-        }
-        
-        if (useSources) {
-          String source = rs.getString("source");
-          TObjectIntHashMap<String> s2id = keyphrases.getKeyphraseSource2id();
-          int sourceId = s2id.size();
-          if (s2id.contains(source)) {
-            sourceId = s2id.get(source);
-          } else {
-            s2id.put(source, sourceId);
-          }
-          TIntIntHashMap keyphraseSources = 
-              keyphrases.getEntityKeyphraseSources().get(entity);
-          if (keyphraseSources == null) {
-            keyphraseSources = new TIntIntHashMap();
-            keyphrases.getEntityKeyphraseSources().put(entity, keyphraseSources);
-          }
-          keyphraseSources.put(keyphrase, sourceId);
-        }
+    for (Pair<Integer, EntityKeyphraseData> p : kpc) {
+      int entity = p.first;
+      EntityKeyphraseData ekd = p.second;
+      int keyphrase = ekd.keyphrase;
+      double keyphraseWeight = ekd.weight;
+              
+      // Add keyphrase.
+      TIntHashSet kps = eKps.get(entity);
+      if (kps == null) {
+        kps = new TIntHashSet();
+        eKps.put(entity, kps);
       }
-      rs.close();
-      statement.commit();
+      kps.add(keyphrase);
       
-      // Transform eKps to entityKeyphrases.
-      for (Entity e : entities) {
-        entityKeyphrases.put(e.getId(), eKps.get(e.getId()).toArray());
+      // Add keyphrase weight.
+      TIntDoubleHashMap keyphrase2mi = entity2keyphrase2mi.get(entity);
+      if (keyphrase2mi == null) {
+        keyphrase2mi = new TIntDoubleHashMap();
+        entity2keyphrase2mi.put(entity, keyphrase2mi);
       }
-    } catch (Exception e) {
-      logger.error(e.getLocalizedMessage());
-    } finally {
-      AidaManager.releaseConnection(AidaManager.DB_AIDA, con);
-    }    
+      keyphrase2mi.put(keyphrase, keyphraseWeight);
+      
+      // Add keywords and weights.
+      Integer[] tokens = ekd.keyphrase_tokens;
+      Double[] tokenWeights = ekd.keyphrase_token_weights;
+      TIntDoubleHashMap keyword2mi = entity2keyword2mi.get(entity);
+      if (keyword2mi == null) {
+        keyword2mi = new TIntDoubleHashMap();
+        entity2keyword2mi.put(entity, keyword2mi);
+      }
+      int[] tokenIds = new int[tokens.length];
+      for (int i = 0; i < tokens.length; ++i) {
+        tokenIds[i] = tokens[i];
+        // Fill missing weights with 0.
+        Double weight = 0.0;
+        if (i < tokenWeights.length) {
+          weight = tokenWeights[i];
+        }
+        keyword2mi.put(tokenIds[i], weight);
+      }
+      if (!keyphraseTokens.containsKey(keyphrase)) {
+        keyphraseTokens.put(keyphrase, tokenIds);
+      }
+      
+      if (useSources) {
+        String source = ekd.source;
+        TObjectIntHashMap<String> s2id = keyphrases.getKeyphraseSource2id();
+        int sourceId = s2id.size();
+        if (s2id.contains(source)) {
+          sourceId = s2id.get(source);
+        } else {
+          s2id.put(source, sourceId);
+        }
+        TIntIntHashMap keyphraseSources = 
+            keyphrases.getEntityKeyphraseSources().get(entity);
+        if (keyphraseSources == null) {
+          keyphraseSources = new TIntIntHashMap();
+          keyphrases.getEntityKeyphraseSources().put(entity, keyphraseSources);
+        }
+        keyphraseSources.put(keyphrase, sourceId);
+      }
+    }
+
+    // Transform eKps to entityKeyphrases.
+    for (Entity e : entities) {
+      entityKeyphrases.put(e.getId(), eKps.get(e.getId()).toArray());
+    }
     
     return keyphrases;
   }
-
+  
   @Override
   public void getEntityKeyphraseTokens(
       Entities entities,
@@ -734,38 +686,31 @@ public class DataAccessSQL implements DataAccessInterface {
   }
 
   @Override
-  public Map<Entity, int[]> getEntityLSHSignatures(Entities entities) {
+  public TIntObjectHashMap<int[]> getEntityLSHSignatures(Entities entities) {
     return getEntityLSHSignatures(entities, ENTITY_LSH_SIGNATURES);
   }
 
   @Override
-  public Map<Entity, int[]> getEntityLSHSignatures(Entities entities, String table) {
-    Map<Entity, int[]> entitySignatures = new HashMap<Entity, int[]>();
-    Map<String, int[]> tmpEntitySignatures = new HashMap<String, int[]>();
-//    TIntObjectHashMap<int[]> tmpEntitySignatures = 
-//        new TIntObjectHashMap<int[]>();
+  public TIntObjectHashMap<int[]> getEntityLSHSignatures(Entities entities, String table) {
+//    Map<String, int[]> tmpEntitySignatures = new HashMap<String, int[]>();
+    TIntObjectHashMap<int[]> entitySignatures = 
+        new TIntObjectHashMap<int[]>();
     
     DBConnection con = null;
     DBStatementInterface statement = null;
 
     try {
       con = AidaManager.getConnectionForDatabase(AidaManager.DB_AIDA, "Getting entity-keyphrases");
-      String entityQueryString = YagoUtil.getPostgresEscapedConcatenatedQuery(entities.getUniqueNames());
-//      String entityQueryString = StringUtils.join(entities.getUniqueIds(), ",");
+//      String entityQueryString = YagoUtil.getPostgresEscapedConcatenatedQuery(entities.getUniqueNames());
+      String entityQueryString = StringUtils.join(entities.getUniqueIds(), ",");
       statement = con.getStatement();
       
-      // TODO runtime of LSH will be really slow, batch create entities from IDs
       String sql = "SELECT entity, signature FROM " + table + " WHERE entity IN (" + entityQueryString + ")";
       ResultSet rs = statement.executeQuery(sql);
       while (rs.next()) {
-        String entity = rs.getString("entity");
+        int entity = rs.getInt("entity");
         int[] sig = org.apache.commons.lang.ArrayUtils.toPrimitive((Integer[]) rs.getArray("signature").getArray());
-        tmpEntitySignatures.put(entity, sig);        
-      }
-      // Transform all entities at once.
-      TObjectIntHashMap<String> name2id = DataAccess.getIdsForYagoEntityIds(tmpEntitySignatures.keySet());
-      for (String name : tmpEntitySignatures.keySet()) {
-        entitySignatures.put(new Entity(name, name2id.get(name)), tmpEntitySignatures.get(name));
+        entitySignatures.put(entity, sig);        
       }
       rs.close();
       statement.commit();
@@ -1464,6 +1409,9 @@ public class DataAccessSQL implements DataAccessInterface {
   @Override
   public TIntObjectHashMap<EntityMetaData> getEntitiesMetaData(int[] entitiesIds) {
     TIntObjectHashMap<EntityMetaData> entitiesMetaData = new TIntObjectHashMap<EntityMetaData>();
+    if (entitiesIds == null || entitiesIds.length == 0) {
+      return entitiesMetaData;
+    }
 
     DBConnection con = null;
     DBStatementInterface statement = null;
@@ -1625,5 +1573,54 @@ public class DataAccessSQL implements DataAccessInterface {
       AidaManager.releaseConnection(AidaManager.DB_AIDA, confNameConn);
     }
     return confName;
+  }
+
+  @Override
+  public int[] getAllKeywordDocumentFrequencies() {
+    DBConnection con = null;
+    DBStatementInterface stmt = null;
+    TIntIntHashMap keywordCounts = new TIntIntHashMap();
+    int maxId = -1;
+    try {
+      logger.info("Reading keyword counts.");
+      con = AidaManager.getConnectionForDatabase(
+          AidaManager.DB_AIDA, "Reading keyword counts.");
+      con.setAutoCommit(false);
+      stmt = con.getStatement();
+      stmt.setFetchSize(1000000);
+      String sql = "SELECT keyword, count FROM " + KEYWORD_COUNTS;
+      ResultSet rs = stmt.executeQuery(sql);
+      int read = 0;
+      while (rs.next()) {
+        int keyword = rs.getInt("keyword");
+        int count = rs.getInt("count");
+        keywordCounts.put(keyword, count);
+        if (keyword > maxId) {
+          maxId = keyword;
+        }
+
+        if (++read % 1000000 == 0) {
+         logger.debug("Read " + read + " keyword counts.");
+        }
+      }
+      con.setAutoCommit(true);
+    } catch (Exception e) {
+      logger.error(e.getLocalizedMessage());
+    } finally {
+      AidaManager.releaseConnection(AidaManager.DB_AIDA, con);
+    }
+    
+    // Transform hash to int array. This will contain a lot of zeroes as 
+    // the keyphrase ids are not part of this (but need to be considered).
+    int[] counts = new int[maxId + 1];
+    for (TIntIntIterator itr = keywordCounts.iterator(); itr.hasNext(); ) {
+      itr.advance();
+      int keywordId = itr.key();
+      // assert keywordId < counts.length && keywordId > 0 : "Failed for " + keywordId;  // Ids start at 1.
+      // actually, keywords should not contain a 0 id, but they do. TODO(mamir,jhoffart).
+      assert keywordId < counts.length : "Failed for " + keywordId;  // Ids start at 1.
+      counts[keywordId] = itr.value();
+    }
+    return counts;
   }
 }

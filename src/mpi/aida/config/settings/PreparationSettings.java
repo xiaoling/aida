@@ -4,6 +4,8 @@ import java.io.Serializable;
 
 import mpi.aida.config.AidaConfig;
 import mpi.aida.data.Type;
+import mpi.aida.preparation.documentchunking.DocumentChunker;
+import mpi.aida.preparation.documentchunking.SingleChunkDocumentChunker;
 import mpi.aida.preparation.mentionrecognition.FilterMentions.FilterType;
 
 /**
@@ -28,6 +30,12 @@ public class PreparationSettings implements Serializable {
   
   //default to the language in AIDA configuration
   private LANGUAGE language = AidaConfig.getLanguage();
+  
+  private DOCUMENT_CHUNK_STRATEGY docChunkStrategy = AidaConfig.getDocumentChunkStrategy();
+  
+  public static enum DOCUMENT_CHUNK_STRATEGY {
+    SINGLE
+  }
   
   public static enum LANGUAGE {
     en, de
@@ -71,5 +79,15 @@ public class PreparationSettings implements Serializable {
 
   public void setMinMentionOccurrenceCount(int minMentionOccurrenceCount) {
     this.minMentionOccurrenceCount = minMentionOccurrenceCount;
+  }
+
+  public DocumentChunker getDocumentChunker() {
+    DocumentChunker chunker = null;
+    switch (docChunkStrategy) {
+      case SINGLE:
+        chunker = new SingleChunkDocumentChunker();
+        break;
+    }
+    return chunker;
   }
 }

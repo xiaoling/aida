@@ -5,7 +5,7 @@ import gnu.trove.map.hash.TIntDoubleHashMap;
 import java.util.ArrayList;
 import java.util.List;
 
-import mpi.aida.AidaManager;
+import mpi.aida.access.DataAccess;
 import mpi.aida.data.Context;
 import mpi.aida.data.Entity;
 import mpi.aida.data.Mention;
@@ -131,7 +131,7 @@ public abstract class KeyphrasesBasedMentionEntitySimilarityMeasure extends Ment
         continue;
       }
       
-      int expandedKeyword = AidaManager.expandTerm(keyword);
+      int expandedKeyword = DataAccess.expandTerm(keyword);
       keywordScore = getKeywordScore(entity, keyword);
       phraseImportance += keywordScore;
       allKeywordsTotalScore += keywordScore;

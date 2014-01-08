@@ -12,7 +12,7 @@ public class PriorMeasureTracer extends MeasureTracer {
 	@Override
 	public String getOutput() {
 		DecimalFormat formatter = new DecimalFormat("#0.000");
-		return "<strong style='color: #0000FF;'>score = " + formatter.format(score) + "</strong";
+		return "<strong style='color: #0000FF;'>score = " + formatter.format(score) + "</strong>";
 	}
 	
 }

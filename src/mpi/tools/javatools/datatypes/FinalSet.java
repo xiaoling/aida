@@ -43,6 +43,7 @@ public class FinalSet<T extends Comparable<?>> extends AbstractList<T> implement
     data=a;
   }
   /** Constructs a FinalSet from an array that does not need to be cloned */
+  @SuppressWarnings("unchecked")
   public FinalSet(T... a) {
     this(false,a);
   }

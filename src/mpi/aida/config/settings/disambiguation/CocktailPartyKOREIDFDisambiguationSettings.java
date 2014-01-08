@@ -21,15 +21,15 @@ public class CocktailPartyKOREIDFDisambiguationSettings extends DisambiguationSe
   private static final long serialVersionUID = 5867674989478781057L;
 
   public CocktailPartyKOREIDFDisambiguationSettings() throws MissingSettingException {
-    setAlpha(0.6);
+    getGraphSettings().setAlpha(0.6);
     setTracingTarget(TracingTarget.WEB_INTERFACE);
      
     setDisambiguationTechnique(TECHNIQUE.GRAPH);
     setDisambiguationAlgorithm(ALGORITHM.COCKTAIL_PARTY_SIZE_CONSTRAINED);
-    setUseExhaustiveSearch(true);
-    setUseNormalizedObjective(true);
-    setEntitiesPerMentionConstraint(5);
-    setUseCoherenceRobustnessTest(false);
+    getGraphSettings().setUseExhaustiveSearch(true);
+    getGraphSettings().setUseNormalizedObjective(true);
+    getGraphSettings().setEntitiesPerMentionConstraint(5);
+    getGraphSettings().setUseCoherenceRobustnessTest(false);
     
     List<String[]> simConfigs = new LinkedList<String[]>();
     simConfigs.add(new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "0.5" });  

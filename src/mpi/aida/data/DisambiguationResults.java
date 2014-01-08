@@ -23,7 +23,7 @@ public class DisambiguationResults implements Serializable {
   private String gTracerHtml;
 
   private Tracer tracer = null;
-
+  
   public DisambiguationResults(Map<ResultMention, List<ResultEntity>> mentionMappings, String gTracerHtml) {
     super();
     if (mentionMappings != null) {      
@@ -38,6 +38,10 @@ public class DisambiguationResults implements Serializable {
   
       this.entitiesMetaData = DataAccess.getEntitiesMetaData(entities);
     }
+  }
+  
+  public void addResults(Map<ResultMention, List<ResultEntity>> results) {
+    mentionMappings.putAll(results);
   }
 
   public List<ResultMention> getResultMentions() {
@@ -58,7 +62,7 @@ public class DisambiguationResults implements Serializable {
     mentionMappings.put(rm, res);
   }
 
-  public ResultEntity getBestEntity(ResultMention rm) {
+  public ResultEntity getBestEntity(ResultMention rm) {    
     List<ResultEntity> res = getResultEntities(rm);
 
     if (res.size() == 0) {

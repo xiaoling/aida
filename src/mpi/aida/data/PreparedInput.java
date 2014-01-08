@@ -3,7 +3,9 @@ package mpi.aida.data;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -11,11 +13,12 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import mpi.tools.javatools.util.FileUtils;
 import mpi.aida.access.DataAccess;
 import mpi.aida.util.filereading.FileEntries;
 import mpi.tokenizer.data.Token;
 import mpi.tokenizer.data.Tokens;
+import mpi.tools.javatools.datatypes.Pair;
+import mpi.tools.javatools.util.FileUtils;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -24,20 +27,17 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PreparedInput {
 
+public class PreparedInput implements Iterable<PreparedInputChunk> {
+  
   private Logger logger_ = LoggerFactory.getLogger(PreparedInput.class);
   
   private String docId_;
-
-  private Tokens tokens_;
-
-  /** Used by the local similarity methods in the disambiguation. It holds
-   * the document tokens both as strings and converted to word ids. */ 
-  private Context context_;
   
-  private Mentions mentions_;
-  
+  private List<PreparedInputChunk> chunks_;
+
+  private static Pattern p = Pattern.compile("-DOCSTART- \\((.*?)\\)");
+    
   /**
    * Timestamp (at midnight) of when this document was published. May be empty.
    */
@@ -45,17 +45,56 @@ public class PreparedInput {
   
   private Set<String> punctuations_ = getPuncuations();
   
-  private static Pattern p = Pattern.compile("-DOCSTART- \\((.*?)\\)");
-
-  public PreparedInput(String docId) {
+  public PreparedInput(String docId, List<PreparedInputChunk> chunks) {
     docId_ = docId;
+    chunks_ = chunks;
   }
 
-  public PreparedInput(String docId, Tokens tokens, Mentions mentions) {
-    docId_ = docId;
-    tokens_ = tokens;
-    mentions_ = mentions;
-    context_ = createContextFromTokens(tokens);
+  public String getDocId() {
+    return docId_;
+  }
+
+  public int getMentionSize() {
+    int mentionSize = 0;
+    for (PreparedInputChunk c : this) {
+      mentionSize += c.getMentions().getMentions().size();
+    }
+    return mentionSize;
+  }
+  
+  public int getChunksCount() {
+    return chunks_.size();
+  }
+  
+  public Tokens getTokens() {
+    Tokens allTokens = new Tokens();
+    for (PreparedInputChunk c : this) {
+      for (Token t : c.getTokens()) {
+        allTokens.addToken(t);     
+      }
+    }
+    return allTokens;
+  }
+  
+  public Mentions getMentions() {
+    Mentions allMentions = new Mentions();
+    for (PreparedInputChunk c : this) {
+      for (Mention m : c.getMentions().getMentions()) {
+        allMentions.addMention(m);        
+      }
+    }
+    return allMentions;
+  }
+
+  @Override
+  public Iterator<PreparedInputChunk> iterator() {
+    return chunks_.iterator();
+  }
+
+  public void setMentionEntitiesTypes(Set<Type> filteringTypes) {
+    for (PreparedInputChunk c : this) {
+      c.getMentions().setEntitiesTypes(filteringTypes);
+    }
   }
   
   /**
@@ -77,44 +116,15 @@ public class PreparedInput {
    * @param inludeOODMentions Set to false to drop all mentions that are not in the dictionary.                             
    */
   public PreparedInput(File file, int mentionMinOccurrences, boolean inludeOODMentions) {
-    PreparedInput loaded = loadFrom(file, mentionMinOccurrences, inludeOODMentions);
-    docId_ = loaded.getDocId();
-    tokens_ = loaded.getTokens();
-    context_ = loaded.getContext();
-    mentions_ = loaded.getMentions();
-    timestamp_ = loaded.getTimestamp();
-  }
-
-  public Tokens getTokens() {
-    return tokens_;
-  }
-
-  public void setTokens(Tokens tokens) {
-    this.tokens_ = tokens;
-    context_ = createContextFromTokens(tokens);
-  }
-
-  public Mentions getMentions() {
-    return mentions_;
-  }
-
-  public void setMentions(Mentions mentions) {
-    mentions_ = mentions;
+    Pair<PreparedInputChunk, Long> loaded = 
+        loadFrom(file, mentionMinOccurrences, inludeOODMentions);
+    docId_ = loaded.first.getChunkId();
+    chunks_ = new ArrayList<PreparedInputChunk>(1);
+    chunks_.add(loaded.first);
+    timestamp_ = loaded.second;
   }
   
-  public Context getContext() {
-    return context_;
-  }
-
-  private Context createContextFromTokens(Tokens t) {
-    return new Context(t);
-  }
-
-  public String getDocId() {
-    return docId_;
-  }
-  
-  private PreparedInput loadFrom(File f, int mentionMinOccurrences, boolean includeOutOfDictionaryMentions) {
+  private Pair<PreparedInputChunk, Long> loadFrom(File f, int mentionMinOccurrences, boolean includeOutOfDictionaryMentions) {
     String docId = null;
     Tokens tokens = null;
     Mentions mentions = null;
@@ -129,7 +139,7 @@ public class PreparedInput {
         // Read metadata.
         if (!line.startsWith("-DOCSTART-")) {
           logger_.error("Invalid input format, first line has to start with " +
-          		"-DOCSTART-");
+              "-DOCSTART-");
         } else {
           // Parse metadata.
           String[] data = line.split("\t");
@@ -137,7 +147,7 @@ public class PreparedInput {
           if (m.find()) {
             // Initialize datastructures.
             docId = m.group(1);          
-            tokens = new Tokens(docId);
+            tokens = new Tokens();
             mentions = new Mentions();
             // Read time if it exists.
             if (data.length > 1) {
@@ -168,7 +178,7 @@ public class PreparedInput {
         String ner = null;
         int mentionOccurrenceCount = 0;
         if (data.length == 0) {
-          logger_.warn("Line length 0 for doc id " + tokens.getDocId());
+          logger_.warn("Line length 0 for doc id " + docId);
         } 
         // Simple token.
         if (data.length >= 1) {
@@ -217,6 +227,7 @@ public class PreparedInput {
         index = endIndex + 1;
       }
     }
+    // TODO(jhoffart): what about OOKBE?
     if (!includeOutOfDictionaryMentions) {
       Map<String, Entities> candidates = 
           DataAccess.getEntitiesForMentions(mentions.getMentionNames(), 1.0);
@@ -237,13 +248,17 @@ public class PreparedInput {
       }
       setTokensPositions(mentions, tokens);
     }
-    PreparedInput prepInput = new PreparedInput(docId, tokens, mentions);
-    if (timestamp != 0) {
-      prepInput.setTimestamp(timestamp);
-    }
-    return prepInput;
+    PreparedInputChunk prepInput = new PreparedInputChunk(docId, tokens, mentions); 
+    return new Pair<PreparedInputChunk, Long>(prepInput, timestamp);
   }
   
+  /**
+   * Assumes a PreparedInput with only a single chunk. Multi-Chunk documents
+   * should never be stored.
+   * 
+   * @param writer
+   * @throws IOException
+   */
   public void writeTo(BufferedWriter writer) throws IOException {
     writer.write("-DOCSTART- (");
     writer.write(docId_);
@@ -255,14 +270,20 @@ public class PreparedInput {
     }
     writer.newLine();
     int currentToken = 0;
-    for (Mention mention : mentions_.getMentions()) {
+    if (chunks_.size() > 1 || chunks_.size() == 0) {
+      throw new IllegalStateException("AIDA disk formats do not support "
+          + "chunked documents. This document contains " + chunks_.size() + 
+          "cunks.");
+    }
+    PreparedInputChunk chunk = chunks_.get(0);
+    for (Mention mention : chunk.getMentions().getMentions()) {
       // Write up to mention.
-      writeTokens(tokens_, currentToken, mention.getStartToken(), writer);
+      writeTokens(chunk.getTokens(), currentToken, mention.getStartToken(), writer);
       currentToken = mention.getEndToken() + 1;
       // Add mention.
-      writeTokensMention(tokens_, mention, writer);
+      writeTokensMention(chunk.getTokens(), mention, writer);
     }
-    writeTokens(tokens_, currentToken, tokens_.size(), writer);
+    writeTokens(chunk.getTokens(), currentToken, chunk.getTokens().size(), writer);
   }
   
   public void writeTo(File file) throws IOException {
@@ -304,7 +325,7 @@ public class PreparedInput {
       start = "I";
     }
   }
-
+  
   private void setTokensPositions(Mentions mentions, Tokens tokens) {
     int startToken = -1;
     int endToken = -1;
@@ -361,19 +382,6 @@ public class PreparedInput {
     return punctuations;
   }
   
-  public String[] getMentionContext(Mention m, int windowSize) {
-    int start = Math.max(0, m.getStartToken() - windowSize);
-    int end = Math.min(tokens_.size(), m.getEndToken() + windowSize);
-    StringBuilder before = new StringBuilder();
-    for (int i = start; i < m.getStartToken(); ++i) {
-      before.append(tokens_.getToken(i).getOriginal()).append(" ");
-    }
-    StringBuilder after = new StringBuilder();
-    for (int i = m.getEndToken() + 1; i < end; ++i) {
-      after.append(tokens_.getToken(i).getOriginal()).append(" ");
-    }
-    return new String[] { before.toString(), after.toString() };
-  }
 
   public long getTimestamp() {
     return timestamp_;
@@ -381,5 +389,5 @@ public class PreparedInput {
 
   public void setTimestamp(long timestamp) {
     this.timestamp_ = timestamp;
-  }
+  }  
 }

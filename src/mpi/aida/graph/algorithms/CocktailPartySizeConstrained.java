@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import mpi.aida.config.settings.ConfidenceSettings;
+import mpi.aida.config.settings.GraphSettings;
 import mpi.aida.graph.Graph;
 import mpi.aida.graph.GraphNode;
 
@@ -21,12 +23,14 @@ public class CocktailPartySizeConstrained extends
 
 	private int initialGraphSize;
 
-	public CocktailPartySizeConstrained(Graph graph, boolean useExhaustiveSearch, boolean useNormalizedObjective,
-			int initialGraphSize) throws IOException, ClassNotFoundException,
+	public CocktailPartySizeConstrained(
+	    Graph graph, GraphSettings graphSettings, boolean computeConfidence, 
+	    ConfidenceSettings confSettings)
+	        throws IOException, ClassNotFoundException,
 			InterruptedException {
-		super(graph, useExhaustiveSearch, useNormalizedObjective);
+		super(graph, graphSettings, computeConfidence, confSettings);
 
-		this.initialGraphSize = initialGraphSize;
+		this.initialGraphSize = graphSettings.getEntitiesPerMentionConstraint();
 	}
 
 
@@ -35,14 +39,14 @@ public class CocktailPartySizeConstrained extends
 		return 1;
 	}
 
-	protected void removeInitialEntitiesByDistance() {
+	protected void removeInitialEntitiesByDistance(Graph graph) {
 		ArrayList<Integer> toRemove = new ArrayList<Integer>();
 		
 		int nodesCount = graph.getNodesCount();
 
 		double[][] allDistances = new double[nodesCount][nodesCount];
 
-		fillDistances(allDistances);
+		fillDistances(graph, allDistances);
 
 		Map<Integer, Double> entityDistances = new HashMap<Integer, Double>();
 
@@ -124,11 +128,11 @@ public class CocktailPartySizeConstrained extends
 			}
 		}
 
-		removeAndUpdateEntities(toRemove, checkMentionDegree, mentionMaxEntity,
+		removeAndUpdateEntities(graph, toRemove, checkMentionDegree, mentionMaxEntity,
 				mentionMaxWeightedDegree);
 	}
 
-	private void fillDistances(double[][] allDistances) {
+	private void fillDistances(Graph graph, double[][] allDistances) {
 
 		for (int m : mentionDegrees.keySet()) {
 			double[] shortest = shortestPath.run(m, graph);

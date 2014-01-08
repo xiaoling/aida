@@ -13,27 +13,28 @@ import mpi.aida.graph.similarity.util.SimilaritySettings;
  * mention-entity prior and the keyphrase based similarity.
  */
 public class LocalDisambiguationSettings extends DisambiguationSettings {
-  
-  public static final List<String[]> simConfigs = 
-      Arrays.asList(new String[][] {
-          new String[] { "UnnormalizedKeyphrasesBasedMISimilarity", "KeyphrasesContext", "2.23198783427544E-6" },
-          new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "2.6026462624132183E-4" },
-          new String[] { "UnnormalizedKeyphrasesBasedMISimilarity", "KeyphrasesContext", "0.0817134645946377" },
-          new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "0.3220317242447891" }
-      });
-  
-  public static final Double priorWeight = 0.5959923145464976;
-  
+    
+  public static final Double priorWeight = 0.5650733990091601;
+    
   private static final long serialVersionUID = -1943862223862927646L;
 
   public LocalDisambiguationSettings() throws MissingSettingException {
     setDisambiguationTechnique(TECHNIQUE.LOCAL);
    
-    SimilaritySettings switchedKPsettings = new SimilaritySettings(simConfigs, null, priorWeight);
+    SimilaritySettings switchedKPsettings = new SimilaritySettings(getSimConfigs(), null, priorWeight);
     switchedKPsettings.setIdentifier("SwitchedKP");
     switchedKPsettings.setPriorThreshold(0.9);
     setSimilaritySettings(switchedKPsettings);
     
     setIncludeNullAsEntityCandidate(false);
+  }
+  
+  public static List<String[]> getSimConfigs() {
+    return Arrays.asList(new String[][] {
+        new String[] { "UnnormalizedKeyphrasesBasedMISimilarity", "KeyphrasesContext", "1.0236515882369545E-4" },
+        new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "7.372542270717097E-5" },
+        new String[] { "UnnormalizedKeyphrasesBasedMISimilarity", "KeyphrasesContext", "0.10121900379778125" },
+        new String[] { "UnnormalizedKeyphrasesBasedIDFSimilarity", "KeyphrasesContext", "0.33353150661152775" }
+    });
   }
 }

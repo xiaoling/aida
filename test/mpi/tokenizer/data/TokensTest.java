@@ -17,7 +17,7 @@ public class TokensTest {
 
   public TokensTest() {
     AidaConfig.set("dataAccess", "testing");
-    AidaConfig.set(AidaConfig.CACHE_WORD_EXPANSIONS, "false");
+    AidaConfig.set(AidaConfig.CACHE_WORD_DATA, "false");
     AidaManager.init();
   }
   

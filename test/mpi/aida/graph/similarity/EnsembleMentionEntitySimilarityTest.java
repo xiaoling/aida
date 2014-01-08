@@ -25,7 +25,7 @@ public class EnsembleMentionEntitySimilarityTest {
 
   public EnsembleMentionEntitySimilarityTest() {
     AidaConfig.set("dataAccess", "testing");
-    AidaConfig.set(AidaConfig.CACHE_WORD_EXPANSIONS, "false");
+    AidaConfig.set(AidaConfig.CACHE_WORD_DATA, "false");
     AidaManager.init();
   }
   
@@ -85,7 +85,7 @@ public class EnsembleMentionEntitySimilarityTest {
       entities.addAll(m.getCandidateEntities());
     }
 
-    EnsembleMentionEntitySimilarity emes = new EnsembleMentionEntitySimilarity(ms, entities, context, settings, null, tracer);
+    EnsembleMentionEntitySimilarity emes = new EnsembleMentionEntitySimilarity(ms, entities, context, settings, tracer);
 
     double simPage = emes.calcSimilarity(m1, context, e3);
     double simKashmir = emes.calcSimilarity(m2, context, e2);

@@ -11,9 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import mpi.aida.graph.similarity.PriorProbability;
-import mpi.tools.basics.Normalize;
-
 import org.junit.Test;
 
 public class CollectionUtilsTest {

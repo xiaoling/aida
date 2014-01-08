@@ -46,7 +46,7 @@ public class Mention implements Serializable, Comparable<Mention> {
   private Entities candidateEntities;
 
   private int id = -1;
-  
+    
   /**
    * Occurrence count either in the collection or in a document. Set as needed.
    */
@@ -105,7 +105,8 @@ public class Mention implements Serializable, Comparable<Mention> {
   }
 
   public String toString() {
-    return mention + "[" + normalizedMention + "]" + ", From:" + startToken + "/" + startStanford + ", To:" + endToken + "/" + endStanford + ", Offset: " + charOffset + ", Length: " + charLength;
+    String norm = (normalizedMention != null) ? ("[" + normalizedMention + "]") : "";
+    return mention + norm + ", From:" + startToken + "/" + startStanford + ", To:" + endToken + "/" + endStanford + ", Offset: " + charOffset + ", Length: " + charLength;
   }
 
   public void setStartToken(int start) {
@@ -145,7 +146,8 @@ public class Mention implements Serializable, Comparable<Mention> {
       if (obj instanceof Mention) {
         Mention m = (Mention) obj;
   
-        return m.getMention().equals(getMention()) && m.getCharOffset() == charOffset;
+        return m.getMention().equals(getMention()) && 
+               m.getCharOffset() == charOffset;
       } else {
         return false;
       }

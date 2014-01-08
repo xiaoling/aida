@@ -8,7 +8,6 @@ import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
 import mpi.aida.graph.similarity.EntityEntitySimilarity;
 import mpi.aida.graph.similarity.context.EntitiesContext;
-import mpi.aida.util.YagoUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

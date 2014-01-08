@@ -3,13 +3,11 @@ package mpi.aida.graph.similarity.measure;
 import gnu.trove.map.hash.TIntDoubleHashMap;
 import gnu.trove.map.hash.TIntIntHashMap;
 import gnu.trove.set.hash.TIntHashSet;
-import mpi.aida.AidaManager;
 import mpi.aida.access.DataAccess;
 import mpi.aida.data.Context;
 import mpi.aida.data.Entity;
 import mpi.aida.data.Mention;
 import mpi.aida.graph.similarity.context.EntitiesContext;
-import mpi.aida.util.YagoUtil;
 import mpi.experiment.trace.Tracer;
 
 /**
@@ -40,7 +38,7 @@ public class TfIdfCosineSimilarityMeasure extends MentionEntitySimilarityMeasure
     double dotProduct = 0.0;
 
     for (int termA : entityVec.keys()) {
-      int expandedA = AidaManager.expandTerm(termA);
+      int expandedA = DataAccess.expandTerm(termA);
       if (contextVec.containsKey(termA)) {
         double tempProduct = entityVec.get(termA) * contextVec.get(termA);
         dotProduct += tempProduct;

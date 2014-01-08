@@ -28,7 +28,7 @@ public class DisambiguatorTest {
   
   public DisambiguatorTest() {
     AidaConfig.set("dataAccess", "testing");
-    AidaConfig.set(AidaConfig.CACHE_WORD_EXPANSIONS, "false");
+    AidaConfig.set(AidaConfig.CACHE_WORD_DATA, "false");
     AidaManager.init();
   }
   
@@ -45,9 +45,9 @@ public class DisambiguatorTest {
     PreparedInput preparedInput = p.prepare(docId, content, new PreparationSettings());
 
     DisambiguationSettings settings = new CocktailPartyDisambiguationSettings();
-    settings.setAlpha(DEFAULT_ALPHA);
-    settings.setCohRobustnessThreshold(DEFAULT_COH_ROBUSTNESS);
-    settings.setEntitiesPerMentionConstraint(DEFAULT_SIZE);
+    settings.getGraphSettings().setAlpha(DEFAULT_ALPHA);
+    settings.getGraphSettings().setCohRobustnessThreshold(DEFAULT_COH_ROBUSTNESS);
+    settings.getGraphSettings().setEntitiesPerMentionConstraint(DEFAULT_SIZE);
 
     Disambiguator d = new Disambiguator(preparedInput, settings);
 
@@ -81,9 +81,9 @@ public class DisambiguatorTest {
     PreparedInput preparedInput = p.prepare(docId, content, new PreparationSettings());
 
     DisambiguationSettings settings = new CocktailPartyDisambiguationSettings();
-    settings.setAlpha(DEFAULT_ALPHA);
-    settings.setCohRobustnessThreshold(DEFAULT_COH_ROBUSTNESS);
-    settings.setEntitiesPerMentionConstraint(DEFAULT_SIZE);
+    settings.getGraphSettings().setAlpha(DEFAULT_ALPHA);
+    settings.getGraphSettings().setCohRobustnessThreshold(DEFAULT_COH_ROBUSTNESS);
+    settings.getGraphSettings().setEntitiesPerMentionConstraint(DEFAULT_SIZE);
     settings.setMaxEntityRank(-0.1);
 
     Disambiguator d = new Disambiguator(preparedInput, settings);
@@ -118,9 +118,9 @@ public class DisambiguatorTest {
     PreparedInput preparedInput = p.prepare(docId, content, new PreparationSettings());
 
     DisambiguationSettings settings = new CocktailPartyDisambiguationSettings();
-    settings.setAlpha(DEFAULT_ALPHA);
-    settings.setCohRobustnessThreshold(DEFAULT_COH_ROBUSTNESS);
-    settings.setEntitiesPerMentionConstraint(DEFAULT_SIZE);
+    settings.getGraphSettings().setAlpha(DEFAULT_ALPHA);
+    settings.getGraphSettings().setCohRobustnessThreshold(DEFAULT_COH_ROBUSTNESS);
+    settings.getGraphSettings().setEntitiesPerMentionConstraint(DEFAULT_SIZE);
     settings.setMaxEntityRank(0.8);
 
     Disambiguator d = new Disambiguator(preparedInput, settings);

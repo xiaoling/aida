@@ -83,6 +83,7 @@ public class ResultMention implements Comparable<ResultMention>, Serializable {
 
   @Override
   public boolean equals(Object o) {
+    System.out.println("RM EQUALS " + this);
     if (o instanceof ResultMention) {
       ResultMention rm = (ResultMention) o;
       return (docId.equals(rm.getDocId()) && mention.equals(rm.getMention()) && characterOffset == rm.getCharacterOffset());
@@ -93,7 +94,8 @@ public class ResultMention implements Comparable<ResultMention>, Serializable {
 
   @Override
   public int hashCode() {
-    return docId.hashCode() + mention.hashCode() + characterOffset;
+    int hash = docId.hashCode() + mention.hashCode() + characterOffset;
+    return hash;
   }
 
   @Override

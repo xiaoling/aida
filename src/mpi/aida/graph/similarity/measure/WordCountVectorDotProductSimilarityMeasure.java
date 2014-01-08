@@ -2,7 +2,7 @@ package mpi.aida.graph.similarity.measure;
 
 import gnu.trove.iterator.TIntIntIterator;
 import gnu.trove.map.hash.TIntIntHashMap;
-import mpi.aida.AidaManager;
+import mpi.aida.access.DataAccess;
 import mpi.aida.data.Context;
 import mpi.aida.data.Entity;
 import mpi.aida.data.Mention;
@@ -50,7 +50,7 @@ public class WordCountVectorDotProductSimilarityMeasure extends MentionEntitySim
       it.advance();
       int wordA = it.key();
 
-      int expandedA = AidaManager.expandTerm(wordA);
+      int expandedA = DataAccess.expandTerm(wordA);
 
       // get counts of word in both vectors
       int wordAcount = entityVec.get(wordA);

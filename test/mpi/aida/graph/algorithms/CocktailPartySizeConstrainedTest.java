@@ -17,6 +17,7 @@ import mpi.aida.config.settings.preparation.StanfordHybridPreparationSettings;
 import mpi.aida.data.Entities;
 import mpi.aida.data.Entity;
 import mpi.aida.data.PreparedInput;
+import mpi.aida.data.PreparedInputChunk;
 import mpi.aida.data.ResultEntity;
 import mpi.aida.data.ResultMention;
 import mpi.aida.graph.Graph;
@@ -30,7 +31,7 @@ public class CocktailPartySizeConstrainedTest {
 	
 	public CocktailPartySizeConstrainedTest() {
 	    AidaConfig.set("dataAccess", "testing");
-	    AidaConfig.set(AidaConfig.CACHE_WORD_EXPANSIONS, "false");
+	    AidaConfig.set(AidaConfig.CACHE_WORD_DATA, "false");
 	    AidaManager.init();
 	}
 
@@ -54,16 +55,19 @@ public class CocktailPartySizeConstrainedTest {
 	
     Preparator p = new Preparator();
     PreparedInput input = p.prepare("test", text, prepSettings);
+    PreparedInputChunk chunk = input.iterator().next();
     
     DisambiguationSettings disSettings = new CocktailPartyDisambiguationSettings();
 		
-		GraphGenerator gg = new GraphGenerator(input, disSettings, tracer);
+		GraphGenerator gg = new GraphGenerator(chunk.getMentions(), chunk.getContext(), chunk.getChunkId(), disSettings, tracer);
 	  Graph gData = gg.run();
 	    
 		//KeyphrasesContext kpContext = new KeyphrasesContext(entities);
 		
 		DisambiguationAlgorithm da = null;
-		da = new CocktailPartySizeConstrained(gData, disSettings.shouldUseExhaustiveSearch(), disSettings.shouldUseNormalizedObjective(), disSettings.getEntitiesPerMentionConstraint());
+		da = new CocktailPartySizeConstrained(gData, disSettings.getGraphSettings(), 
+		    disSettings.shouldComputeConfidence(),
+		    disSettings.getConfidenceSettings());
 		Map<ResultMention, List<ResultEntity>> results = da.disambiguate();
 	    Map<String, ResultEntity> mappings = repackageMappings(results);
 
@@ -75,16 +79,16 @@ public class CocktailPartySizeConstrainedTest {
 	    mapped = mappings.get("Kashmir").getEntity();
 	    score = mappings.get("Kashmir").getDisambiguationScore();
 	    assertEquals("Kashmir_(song)", mapped);
-	    assertEquals(0.07995, score, 0.00001);
+	    assertEquals(0.08787, score, 0.00001);
 
 	    mapped = mappings.get("Knebworth").getEntity();
 	    score = mappings.get("Knebworth").getDisambiguationScore();
 	    assertEquals("Knebworth_Festival", mapped);
-	    assertEquals(0.357689, score, 0.00001);
+	    assertEquals(0.33910, score, 0.00001);
 
 	    mapped = mappings.get("Les Paul").getEntity();
 	    score = mappings.get("Les Paul").getDisambiguationScore();
-	    assertEquals("--NME--", mapped);
+	    assertEquals(Entity.OOKBE, mapped);
 	    assertEquals(0.0, score, 0.00001);
 	    
 	}

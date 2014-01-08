@@ -47,9 +47,9 @@ public interface DataAccessInterface {
   
   public double getKeyphraseSourceWeights(String source);
 
-  public Map<Entity, int[]> getEntityLSHSignatures(Entities entities);
+  public TIntObjectHashMap<int[]> getEntityLSHSignatures(Entities entities);
 
-  public Map<Entity, int[]> getEntityLSHSignatures(Entities entities, String table);
+  public TIntObjectHashMap<int[]> getEntityLSHSignatures(Entities entities, String table);
 
   public String getFamilyName(String entity);
 
@@ -130,4 +130,6 @@ public interface DataAccessInterface {
   public double getEntityImportance(int entityId);  
   
   public String getConfigurationName();
+
+  public int[] getAllKeywordDocumentFrequencies();
  }

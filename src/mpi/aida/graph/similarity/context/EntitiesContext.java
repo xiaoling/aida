@@ -49,7 +49,7 @@ public abstract class EntitiesContext {
   protected List<String> getTokens(String string) {
     List<String> tokens = new LinkedList<String>();
 
-    Tokens advTokens = AidaManager.tokenize("EntitiesContext", string);
+    Tokens advTokens = AidaManager.tokenize(string);
 
     for (Token token : advTokens) {
       tokens.add(token.getOriginal());

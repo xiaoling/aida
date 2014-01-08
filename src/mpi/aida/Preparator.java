@@ -1,15 +1,26 @@
 package mpi.aida;
 
+import gnu.trove.map.hash.TObjectIntHashMap;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import mpi.aida.config.settings.PreparationSettings;
+import mpi.aida.data.Mention;
+import mpi.aida.data.Mentions;
 import mpi.aida.data.PreparedInput;
 import mpi.aida.data.Type;
+import mpi.aida.preparation.documentchunking.DocumentChunker;
+import mpi.aida.preparation.mentionrecognition.FilterMentions;
+import mpi.aida.preparation.mentionrecognition.FilterMentions.FilterType;
 import mpi.aida.util.RunningTimer;
+import mpi.tokenizer.data.Tokens;
+import mpi.tools.javatools.datatypes.Pair;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +29,8 @@ public class Preparator {
   private Logger logger_ = LoggerFactory.getLogger(Preparator.class);
   
   private Integer processedDocuments = 0;
+  
+  private static FilterMentions filterMention = new FilterMentions();
   
   private Map<String, Integer> processedDocuments_ =
       new HashMap<String, Integer>();
@@ -66,14 +79,53 @@ public class Preparator {
     } else {
       processedDocuments_.put(docId, hash);
     }
-    PreparedInput preparedInput = AidaManager.prepareInputData(text, docId, settings);
+    PreparedInput preparedInput = prepareInputData(text, docId, settings);
+
     Type[] types = settings.getFilteringTypes();
     if (types != null) {
       logger_.info("Entity Types Filter Set!");
       Set<Type> filteringTypes = new HashSet<Type>(Arrays.asList(settings.getFilteringTypes()));
-      preparedInput.getMentions().setEntitiesTypes(filteringTypes);
+      preparedInput.setMentionEntitiesTypes(filteringTypes);
     }
     RunningTimer.end("Preparator", timerId);
     return preparedInput;
+  }  
+
+  private PreparedInput prepareInputData(String text, String docId, PreparationSettings settings) {
+    Pair<Tokens, Mentions> tokensMentions = null;
+    if (settings.getMentionsFilter().equals(FilterType.Manual)) {
+      tokensMentions = filterMention.filter(text, settings.getMentionsFilter(), false, settings.getLanguage());
+    } else {
+      tokensMentions = filterMention.filter(text, settings.getMentionsFilter(), settings.isUseHybridMentionDetection(), settings.getLanguage());
+    }
+    
+    // Drop mentions below min occurrence count.
+    if (settings.getMinMentionOccurrenceCount() > 1) {
+      dropMentionsBelowOccurrenceCount(tokensMentions.second, settings.getMinMentionOccurrenceCount());
+    }
+    
+    DocumentChunker chunker = settings.getDocumentChunker();
+    PreparedInput preparedInput = 
+        chunker.process(docId, tokensMentions.first, tokensMentions.second);
+    
+    return preparedInput;
   }
+
+  public static void dropMentionsBelowOccurrenceCount(Mentions docMentions,
+      int minMentionOccurrenceCount) {
+    TObjectIntHashMap<String> mentionCounts = new TObjectIntHashMap<String>();
+    for (Mention m : docMentions.getMentions()) {
+      mentionCounts.adjustOrPutValue(m.getMention(), 1, 1);
+    }
+    List<Mention> mentionsToRemove = new ArrayList<Mention>();
+    for (Mention m : docMentions.getMentions()) {
+      if (mentionCounts.get(m.getMention()) < minMentionOccurrenceCount) {
+        mentionsToRemove.add(m);
+      }
+    }
+    for (Mention m : mentionsToRemove) {
+      docMentions.remove(m);
+    }
+  }
+
 }

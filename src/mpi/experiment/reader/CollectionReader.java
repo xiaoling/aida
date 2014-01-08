@@ -10,6 +10,8 @@ import java.util.Map;
 
 import mpi.tools.javatools.util.FileUtils;
 import mpi.aida.data.Context;
+import mpi.aida.data.Entities;
+import mpi.aida.data.Mention;
 import mpi.aida.data.Mentions;
 import mpi.aida.data.PreparedInput;
 
@@ -35,7 +37,7 @@ public abstract class CollectionReader implements Iterable<PreparedInput> {
   protected CollectionReaderSettings settings;
 
   public static enum DataSource {
-    CONLL, WIKIPEDIA_YAGO2, AIDA, NEWSSTREAMS, GIGAWORD5, NONE 
+    CONLL, WIKIPEDIA_YAGO2, AIDA, NEWSSTREAMS, GIGAWORD5, AIDA_SINGLE, DNB, NONE 
   }
 
   public static final String CONLL = "CONLL";
@@ -48,10 +50,14 @@ public abstract class CollectionReader implements Iterable<PreparedInput> {
   
   public static final String NEWSSTREAMS = "NEWSSTREAMS";
   
+  public static final String AIDA_SINGLE = "AIDA_SINGLE";
+  
+  public static final String DNB = "DNB";
+  
   public static final String NONE = "NONE";
 
   public static enum CollectionPart {
-    TRAIN, DEV, DEV_SMALL, TEST
+    TRAIN, DEV, DEV_SMALL, TEST, ALL
   }
 
   public static final String TRAIN = "TRAIN";
@@ -61,6 +67,8 @@ public abstract class CollectionReader implements Iterable<PreparedInput> {
   public static final String DEV_SMALL = "DEV_SMALL";
 
   public static final String TEST = "TEST";
+  
+  public static final String ALL = "ALL";
 
   public CollectionReader(String collectionPath, CollectionReaderSettings settings) {
     this(collectionPath, 0, Integer.MAX_VALUE, settings);
@@ -125,7 +133,7 @@ public abstract class CollectionReader implements Iterable<PreparedInput> {
     } else if (collectionPart.equals(TEST)) {
       return CollectionPart.TEST;
     } else {
-      return null;
+      return CollectionPart.ALL;
     }
   }
   
@@ -153,5 +161,24 @@ public abstract class CollectionReader implements Iterable<PreparedInput> {
 
   public CollectionReaderSettings getSettings() {
     return settings;
+  }
+  
+  public String getCollectionStatistics() {
+    int mentionCount = 0;
+    int ookbeCount = 0;
+    for (PreparedInput p : this) {
+      mentionCount += p.getMentions().getMentions().size();
+      for (Mention m : p.getMentions().getMentions()) {
+        if (Entities.isOokbEntity(m.getGroundTruthResult())) {
+          ++ookbeCount;
+        }
+      }
+    }
+    StringBuilder sb = new StringBuilder();
+    sb.append(collectionPath).append("[").append(from).append(", ").append(to)
+      .append("]:" ).append(collectionSize()).append(" documents, ")
+      .append(mentionCount).append(" mentions (").append(ookbeCount)
+      .append(" out of knowledge base).");
+    return sb.toString();
   }
 }

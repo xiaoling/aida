@@ -99,8 +99,8 @@ public class Tokenizer {
     init();
   }
 
-  public Tokens parse(String text, String docId, boolean lemmatize) {
-    Tokens tokens = new Tokens(docId);
+  public Tokens parse(String text, boolean lemmatize) {
+    Tokens tokens = new Tokens();
     parse(tokens, text, lemmatize);
     return tokens;
   }
@@ -140,8 +140,8 @@ public class Tokenizer {
         tokens.setOriginalEnd(text);
       }
     } catch (Exception e) {
-      logger.warn("Parser failed: " + e.getLocalizedMessage());
-      tokens.logProblem("Parser failed: " + e);
+      logger.error("Parser failed: " + e.getLocalizedMessage());
+      e.printStackTrace();
     }
   }
 
@@ -169,7 +169,6 @@ public class Tokenizer {
     token.setPOS(pos);
     
     tokens.addToken(token);
-    
   }
 
   private void init() {
@@ -180,23 +179,4 @@ public class Tokenizer {
     whitespace.add(' ');
     whitespace.add('\t');
   }
-
-  /**
-   * @param args
-   */
-  public static void main(String[] args) {
-//    Tokenizer tokenizer = new Tokenizer(Tokenizer.type.ner);
-//    Tokens tokens = tokenizer.parse("Albert Einstein was born on 10. Mai in Ulm and was a scientist-politician under-21.", "test", false);
-    Tokenizer tokenizer = new Tokenizer(Tokenizer.type.germantokens);
-//    Tokens tokens = tokenizer.parse("Ministerin Schawan wurde durch Frau Wanka ersetzt, die zuvor Ministerin in Niedersachsen war. Die frühere Professorin für Mathematik war Mitglied des Kabinetts McAllister. Sie hat das Amt von  Schavan im Februar übernommen. Frau Schavan musste zurücktreten, weil ihre Doktorarbeit  mit dem Titel Person und Gewissen vom Winde verweht wurde.", "test", false);
-    Tokens tokens = tokenizer.parse("Albert Einstein wurde am 10. Mai in Ulm geboren.", "test", false);
-	  System.out.println(tokens);
-	  System.out.println(tokens.toText(0, 8));
-	  System.out.println(tokens.getToken(0).getNE());
-//    tokens.getStanfordTokens();
-//    for (String token : tokens.getStanfordTokens()) {
-//      System.out.println(token);
-//    }
-  }
-
 }

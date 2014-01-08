@@ -1,5 +1,6 @@
 package mpi.aida.access;
 
+import gnu.trove.iterator.TIntIterator;
 import gnu.trove.map.hash.TIntDoubleHashMap;
 import gnu.trove.map.hash.TIntIntHashMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
@@ -9,6 +10,7 @@ import gnu.trove.set.hash.TIntHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -37,7 +39,7 @@ public class DataAccess {
   public static final String KPSOURCE_CATEGORY = "wikipediaCategory";
 
   public static final String KPSOURCE_CITATION = "citationTitle";
-
+  
   /** which type of data access*/
   public static enum type {
     sql, testing
@@ -57,7 +59,7 @@ public class DataAccess {
       		        "using 'sql' as default.");
       dataAccess = new DataAccessSQL();
     }
-  }
+  }  
 
   private static DataAccessInterface getInstance() {
     if (dataAccess == null) {
@@ -278,7 +280,7 @@ public class DataAccess {
     return getInstance().getEntityImportance(entityId);
   }
   
-  public static TIntIntHashMap getKeyphraseDocumentFrequencies(TIntHashSet keyphrases) {
+  public static TIntIntHashMap getKeyphraseDocumentFrequencies(TIntHashSet keyphrases) {    
     return getInstance().getKeyphraseDocumentFrequencies(keyphrases);
   }
 
@@ -294,7 +296,11 @@ public class DataAccess {
     return getInstance().getKeyphraseSource(entityName, keyphrase);
   }
 
-  public static Map<Entity, int[]> getEntityLSHSignatures(Entities entities) {
+  public static TIntObjectHashMap<int[]> getEntityLSHSignatures(Entities entities, String table) {
+    return getInstance().getEntityLSHSignatures(entities, table);
+  }
+
+  public static TIntObjectHashMap<int[]> getEntityLSHSignatures(Entities entities) {
     return getInstance().getEntityLSHSignatures(entities);
   }
 
@@ -305,17 +311,19 @@ public class DataAccess {
   public static String getGivenName(String entity) {
     return getInstance().getGivenName(entity);
   }
-
-  public static Map<Entity, int[]> getEntityLSHSignatures(Entities entities, String table) {
-    return getInstance().getEntityLSHSignatures(entities, table);
-  }
-
+  
   public static TIntDoubleHashMap getEntityPriors(String mention) {
     return getInstance().getEntityPriors(mention);
   }
 
   public static TIntIntHashMap getKeywordDocumentFrequencies(TIntHashSet keywords) {
-    return getInstance().getKeywordDocumentFrequencies(keywords);
+    TIntIntHashMap keywordCounts = new TIntIntHashMap(keywords.size(), 1.0f);
+    for (TIntIterator itr = keywords.iterator(); itr.hasNext(); ) {
+      int keywordId = itr.next();      
+      int count = DataAccessCache.singleton().getKeywordCount(keywordId);
+      keywordCounts.put(keywordId, count);
+    }    
+    return keywordCounts;   
   }
 
   public static TIntIntHashMap getEntitySuperdocSize(Entities entities) {
@@ -371,5 +379,17 @@ public class DataAccess {
   
   public static String getConfigurationName() {
     return getInstance().getConfigurationName();
+  }
+
+  public static int expandTerm(int wordId) {
+    return DataAccessCache.singleton().expandTerm(wordId);
+  }
+
+  public static String expandTerm(String term) {
+    return term.toUpperCase(Locale.ENGLISH);
+  }
+
+  public static int[] getAllKeywordDocumentFrequencies() {
+    return getInstance().getAllKeywordDocumentFrequencies();
   }  
 }

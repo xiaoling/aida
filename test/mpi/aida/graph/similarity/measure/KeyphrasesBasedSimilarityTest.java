@@ -22,7 +22,7 @@ public class KeyphrasesBasedSimilarityTest {
 
   public KeyphrasesBasedSimilarityTest() {
     AidaConfig.set("dataAccess", "testing");
-    AidaConfig.set(AidaConfig.CACHE_WORD_EXPANSIONS, "false");
+    AidaConfig.set(AidaConfig.CACHE_WORD_DATA, "false");
     AidaManager.init();
   }
   
@@ -104,9 +104,9 @@ public class KeyphrasesBasedSimilarityTest {
     assertEquals(0.00009718, sim3, 0.00000001);
   }
   
+  // TODO(jhoffart): Test seems to be working in eclipse but not in mvn.
 //  @Test
 //  public void testSimilarityNoMentionMatch() throws Exception {
-//    // All caps PLAYED to check if term expansion is working.
 //    String text = 
 //        "When Page played Kashmir at Knebworth , his Les Paul was uniquely tuned .";
 //    

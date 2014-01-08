@@ -9,28 +9,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import mpi.tools.javatools.parsers.Char;
 import mpi.aida.access.DataAccess;
+import mpi.aida.data.AidaRESTJsonResults;
 import mpi.aida.data.DisambiguationResults;
+import mpi.aida.data.Entities;
 import mpi.aida.data.PreparedInput;
 import mpi.aida.data.ResultEntity;
 import mpi.aida.data.ResultMention;
-import mpi.aida.data.AidaRESTJsonResults;
 import mpi.aida.data.Type;
 import mpi.aida.util.Result;
 import mpi.tokenizer.data.Token;
 import mpi.tokenizer.data.Tokens;
-
-import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import mpi.tools.basics.Basics;
 import mpi.tools.basics.Normalize;
+import mpi.tools.javatools.parsers.Char;
 
+import org.apache.commons.lang.StringUtils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GenerateWebHtml {
   private static final Logger logger = 
@@ -86,6 +85,7 @@ public class GenerateWebHtml {
    * @return  HTML version of result.
    * @throws Exception
    */
+  @SuppressWarnings("rawtypes")
   @Deprecated
   public String processJSON(String text, PreparedInput input, String jsonRepr, boolean generateTypeInformation) throws Exception {
     if (jsonRepr == null || jsonRepr.equals("")) {
@@ -199,7 +199,7 @@ public class GenerateWebHtml {
           text = tokens.toText(from, to);
         }
         html.append("<small>[");
-        if (mention.getEntity().equals("--NME--")) {
+        if (Entities.isOokbEntity(mention.getEntity())) {
           html.append(mention.getEntity());
         } else {
           String name = Normalize.unEntity(mention.getEntity());
