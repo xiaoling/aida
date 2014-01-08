@@ -4,7 +4,9 @@
 
 If you want to be notified about AIDA news or new releases, subscribe to our announcement mailing list by sending a mail to:
 
-> aida-news-subscribe@lists.mpi-inf.mpg.de
+```
+aida-news-subscribe@lists.mpi-inf.mpg.de
+```
 
 ## AIDA Overview
 
@@ -12,7 +14,9 @@ AIDA is a framework and online tool for entity detection and disambiguation. Giv
 
 Take the example sentence below:
 
-> When Page played Kashmir at Knebworth, his Les Paul was uniquely tuned.
+```
+When Page played Kashmir at Knebworth, his Les Paul was uniquely tuned.
+```
 
 Aida will first spot all the names: "Page", "Kashmir", "Knebworth", and "Les Paul".
 
@@ -147,7 +151,56 @@ You can configure all settings by accessing the following URL:
 
 `http://localhost:8080/aida/service/disambiguate`
 
-Please look at `mpi.aida.service.web.RequestProcessor` for details about the parameters it expects.
+Please look at `mpi.aida.service.web.RequestProcessor` for details about the parameters it expects. The most simple call is
+
+```
+curl --data text="Einstein was born in Ulm." http://localhost:8080/aida/service/disambiguate-defaultsettings
+```
+
+which should return a JSON string containing the following fields (among others)
+
+```
+{
+  "cleanedText": "Einstein was born in Ulm.",
+  "annotatedText": "[[http:\/\/de.wikipedia.org\/wiki\/Albert_Einstein|Einstein]] was born in [[http:\/\/de.wikipedia.org\/wiki\/Ulm|Ulm]].",
+  "mentions": [
+    {
+      "allEntities": [
+        {
+          "id": 712913,
+          "name": "Albert_Einstein",
+          "disambiguationScore": "0.6"
+        }
+      ],
+      "bestEntity": {
+        "id": 712913,
+        "name": "Albert_Einstein",
+        "disambiguationScore": "0.6"
+      },
+      "name": "Einstein",
+      "length": 8,
+      "offset": 0
+    },
+    {
+      "allEntities": [
+        {
+          "id": 4130090,
+          "name": "Ulm",
+          "disambiguationScore": "0.2934"
+        }
+      ],
+      "bestEntity": {
+        "id": 4130090,
+        "name": "Ulm",
+        "disambiguationScore": "0.2934"
+      },
+      "name": "Ulm",
+      "length": 3,
+      "offset": 21
+    }
+  ]
+}
+```
 
 ## Input Format
 
@@ -207,10 +260,12 @@ The edge weights of the disambiguation graph are configured in the `similaritySe
 
 Take our default configuration as example (in File syntax):
 
-> mentionEntitySimilarities = UnnormalizedKeyphrasesBasedMISimilarity:KeyphrasesContext:2.23198783427544E-6 UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext:2.6026462624132183E-4 UnnormalizedKeyphrasesBasedMISimilarity:KeyphrasesContext:0.0817134645946377 UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext:0.3220317242447891
-> priorWeight = 0.5959923145464976
-> priorThreshold = 0.9
-> entityEntitySimilarity = MilneWittenEntityEntitySimilarity:1.0
+```
+mentionEntitySimilarities = UnnormalizedKeyphrasesBasedMISimilarity:KeyphrasesContext:2.23198783427544E-6 UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext:2.6026462624132183E-4 UnnormalizedKeyphrasesBasedMISimilarity:KeyphrasesContext:0.0817134645946377 UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext:0.3220317242447891
+priorWeight = 0.5959923145464976
+priorThreshold = 0.9
+entityEntitySimilarity = MilneWittenEntityEntitySimilarity:1.0
+```
 
 It is possible to create a SimilaritySettings object programmatically, however we recommend using the preconfigured settings in the `mpi.aida.config.settings.disambiguation` package.
 

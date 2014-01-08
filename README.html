@@ -4,9 +4,8 @@
 
 <p>If you want to be notified about AIDA news or new releases, subscribe to our announcement mailing list by sending a mail to:</p>
 
-<blockquote>
-<p>aida-news-subscribe@lists.mpi-inf.mpg.de</p>
-</blockquote>
+<pre><code>aida-news-subscribe@lists.mpi-inf.mpg.de
+</code></pre>
 
 <h2 id="aidaoverview">AIDA Overview</h2>
 
@@ -14,9 +13,8 @@
 
 <p>Take the example sentence below:</p>
 
-<blockquote>
-<p>When Page played Kashmir at Knebworth, his Les Paul was uniquely tuned.</p>
-</blockquote>
+<pre><code>When Page played Kashmir at Knebworth, his Les Paul was uniquely tuned.
+</code></pre>
 
 <p>Aida will first spot all the names: &#8220;Page&#8221;, &#8220;Kashmir&#8221;, &#8220;Knebworth&#8221;, and &#8220;Les Paul&#8221;.</p>
 
@@ -164,7 +162,54 @@ mvn jetty:run
 
 <p><code>http://localhost:8080/aida/service/disambiguate</code></p>
 
-<p>Please look at <code>mpi.aida.service.web.RequestProcessor</code> for details about the parameters it expects.</p>
+<p>Please look at <code>mpi.aida.service.web.RequestProcessor</code> for details about the parameters it expects. The most simple call is</p>
+
+<pre><code>curl --data text=&quot;Einstein was born in Ulm.&quot; http://localhost:8080/aida/service/disambiguate-defaultsettings
+</code></pre>
+
+<p>which should return a JSON string containing the following fields (among others)</p>
+
+<pre><code>{
+  &quot;cleanedText&quot;: &quot;Einstein was born in Ulm.&quot;,
+  &quot;annotatedText&quot;: &quot;[[http:\/\/de.wikipedia.org\/wiki\/Albert_Einstein|Einstein]] was born in [[http:\/\/de.wikipedia.org\/wiki\/Ulm|Ulm]].&quot;,
+  &quot;mentions&quot;: [
+    {
+      &quot;allEntities&quot;: [
+        {
+          &quot;id&quot;: 712913,
+          &quot;name&quot;: &quot;Albert_Einstein&quot;,
+          &quot;disambiguationScore&quot;: &quot;0.6&quot;
+        }
+      ],
+      &quot;bestEntity&quot;: {
+        &quot;id&quot;: 712913,
+        &quot;name&quot;: &quot;Albert_Einstein&quot;,
+        &quot;disambiguationScore&quot;: &quot;0.6&quot;
+      },
+      &quot;name&quot;: &quot;Einstein&quot;,
+      &quot;length&quot;: 8,
+      &quot;offset&quot;: 0
+    },
+    {
+      &quot;allEntities&quot;: [
+        {
+          &quot;id&quot;: 4130090,
+          &quot;name&quot;: &quot;Ulm&quot;,
+          &quot;disambiguationScore&quot;: &quot;0.2934&quot;
+        }
+      ],
+      &quot;bestEntity&quot;: {
+        &quot;id&quot;: 4130090,
+        &quot;name&quot;: &quot;Ulm&quot;,
+        &quot;disambiguationScore&quot;: &quot;0.2934&quot;
+      },
+      &quot;name&quot;: &quot;Ulm&quot;,
+      &quot;length&quot;: 3,
+      &quot;offset&quot;: 21
+    }
+  ]
+}
+</code></pre>
 
 <h2 id="inputformat">Input Format</h2>
 
@@ -233,12 +278,11 @@ mvn jetty:run
 
 <p>Take our default configuration as example (in File syntax):</p>
 
-<blockquote>
-<p>mentionEntitySimilarities = UnnormalizedKeyphrasesBasedMISimilarity:KeyphrasesContext:2.23198783427544E&#8211;6 UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext:2.6026462624132183E&#8211;4 UnnormalizedKeyphrasesBasedMISimilarity:KeyphrasesContext:0.0817134645946377 UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext:0.3220317242447891
+<pre><code>mentionEntitySimilarities = UnnormalizedKeyphrasesBasedMISimilarity:KeyphrasesContext:2.23198783427544E-6 UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext:2.6026462624132183E-4 UnnormalizedKeyphrasesBasedMISimilarity:KeyphrasesContext:0.0817134645946377 UnnormalizedKeyphrasesBasedIDFSimilarity:KeyphrasesContext:0.3220317242447891
 priorWeight = 0.5959923145464976
 priorThreshold = 0.9
-entityEntitySimilarity = MilneWittenEntityEntitySimilarity:1.0</p>
-</blockquote>
+entityEntitySimilarity = MilneWittenEntityEntitySimilarity:1.0
+</code></pre>
 
 <p>It is possible to create a SimilaritySettings object programmatically, however we recommend using the preconfigured settings in the <code>mpi.aida.config.settings.disambiguation</code> package.</p>
 
