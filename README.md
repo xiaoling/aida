@@ -119,7 +119,7 @@ See the `mpi.aida.config.settings.disambiguation` package for all possible prede
     
 1. Run the CommandLineDisambiguator:
 
-    `java -Xmx4G -cp target/aida-2.0-jar-with-dependencies.jar mpi.aida.CommandLineDisambiguator -t GRAPH -i <INPUT-FILE>`
+    `java -Xmx4G -cp target/aida-2.0.4-jar-with-dependencies.jar mpi.aida.CommandLineDisambiguator -t GRAPH -i <INPUT-FILE>`
 
 `<INPUT-FILE>` is path to the text file to be annotated with entities. The format for `<INPUT-FILE>` should be plain text with UTF-8 encoding.
 

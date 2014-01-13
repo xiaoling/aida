@@ -140,15 +140,13 @@ public class HtmlGenerator {
       htmlList.append((Long)tmpMention.get("length")+"/");
       htmlList.append((Long)tmpMention.get("offset")+") -> [");
       JSONArray entities = (JSONArray)tmpMention.get("allEntities");
-      Iterator itEntities = entities.iterator();
-      while(true){
-        JSONObject entity = (JSONObject)itEntities.next();
+      for (int i = 0; i < entities.size(); ++i) {
+        JSONObject entity = (JSONObject) entities.get(i);
         htmlList.append((String)entity.get("name"));
         htmlList.append("("+(String)entity.get("disambiguationScore")+")");
-        if(itEntities.hasNext())
+        if(i < entities.size() - 1) {
           htmlList.append(", ");
-        else
-          break;
+        }
       }
       htmlList.append("]");
       htmlList.append(getTag("li",true));
