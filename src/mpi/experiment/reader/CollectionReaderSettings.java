@@ -19,7 +19,12 @@ public class CollectionReaderSettings {
    * Used for NewsStreamReader.
    */
   private int minMentionOccurrence_ = 0;
- 
+
+  /**
+   * Set to true to keep a space before a punctuation 
+   **/
+  private boolean keepSpaceBeforePunctuations_ = false; 
+  
   public boolean isIncludeNMEMentions() {
     return includeNMEMentions_;
   }
@@ -44,4 +49,13 @@ public class CollectionReaderSettings {
   public void setMinMentionOccurrence(int minMentionOccurrence_) {
     this.minMentionOccurrence_ = minMentionOccurrence_;
   }
+  
+  public boolean isKeepSpaceBeforePunctuations() {
+		return keepSpaceBeforePunctuations_;
+	}
+
+	public void setKeepSpaceBeforePunctuations(
+			boolean keepSpaceBeforePunctuations_) {
+		this.keepSpaceBeforePunctuations_ = keepSpaceBeforePunctuations_;
+	}
 }
