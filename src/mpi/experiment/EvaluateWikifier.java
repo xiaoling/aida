@@ -109,7 +109,7 @@ public class EvaluateWikifier {
 			System.out.println("====" + linkThresh + "===" + rankThresh
 					+ "====");
 			double prec = (double) tp / (tp + fp);
-			double rec = (double) tp / (fp + fn);
+			double rec = (double) tp / (tp + fn);
 			double f1 = 2 * prec * rec / (prec + rec);
 			System.out.println(String.format("prec=%.3f\trec=%.3f\tf1=%.3f",
 					prec, rec, f1));
@@ -119,7 +119,7 @@ public class EvaluateWikifier {
 		{
 			System.out.println("=====BOC=====");
 			double prec = (double) tp2 / (tp2 + fp2);
-			double rec = (double) tp2 / (fp2 + fn2);
+			double rec = (double) tp2 / (tp2 + fn2);
 			double f1 = 2 * prec * rec / (prec + rec);
 			System.out.println(String.format("prec=%.3f\trec=%.3f\tf1=%.3f",
 					prec, rec, f1));
