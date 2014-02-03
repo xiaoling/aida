@@ -31,22 +31,19 @@ public class DBConnectionBuilderTest {
 			DBSettings settings = new DBSettings(hostname, port, username,
 					password, maxCon, type, service);
 			StringBuffer url = new StringBuffer(200);
-			    url.append("jdbc:postgresql:");
-    url.append("//");
-    url.append(settings.getHostname());
-    url.append(':');
-    url.append(settings.getPort());
-    url.append('/');
-    url.append(settings.getServiceName());
-
+			url.append("jdbc:postgresql:");
+			url.append("//");
+			url.append(settings.getHostname());
+			url.append(':');
+			url.append(settings.getPort());
+			url.append('/');
+			url.append(settings.getServiceName());
 			System.out.println(url);
-			System.out.println("pass:"+password+";");
+			System.out.println("pass:" + password + ";");
+			System.out.println(hostname);
 			Assert.assertNotNull(DBConnectionBuilder.createConnection(settings));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
 	}
-
 }
-

@@ -10,6 +10,11 @@ import mpi.tokenizer.data.Token;
 
 import org.apache.commons.io.FileUtils;
 
+/**
+ * read the AIDA data set and output in plain text for other packages, e.g. Wikifier.
+ * @author xiaoling
+ *
+ */
 public class ExtractDocumentsInRawText {
 	public static void main(String[] args) {
 		CoNLLReader reader = new CoNLLReader("/homes/gws/xiaoling/dataset/nel/AIDA/aida-yago2-dataset/", CollectionPart.TEST);
@@ -35,4 +40,3 @@ public class ExtractDocumentsInRawText {
 		}
 	}
 }
-

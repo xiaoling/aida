@@ -207,7 +207,7 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
             mentionStart = "B".equals(data[1]);
             textMention = data[2];
             entity = data[3];
-	    ner = data[4];
+            ner = data[4];//xiaoling
           } else {
             logger.warn("line has wrong format " + line + " for docId " + docId);
           }
@@ -225,6 +225,7 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
             mention.setCharOffset(index);
             mention.setCharLength(textMention.length());
             mention.setMention(textMention);
+            mention.setNer(ner); //xiaoling
             mention.setGroundTruthResult(entity);
 	    mention.setNer(ner);
             mentions.addMention(mention);
