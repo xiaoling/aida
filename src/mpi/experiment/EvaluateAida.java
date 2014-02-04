@@ -18,28 +18,31 @@ public class EvaluateAida {
 	private static JSONParser parser = new JSONParser();
 
 	public static void main(String[] args) {
-		// String dir = "data/ace/";
-		// String dir2 =
-		// "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/ACE2004_Coref_Turking/Dev/ProblemsNoTranscripts/";
-		// String repl = ".txt.json";
+//		test();
+//		System.exit(0);
+//		String dir = "data/ace/";
+//		String dir2 = "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/ACE2004_Coref_Turking/Dev/ProblemsNoTranscripts/";
+//		String repl = ".txt.json";
 
-		// String dir = "data/msnbc/";
-		// String dir2 =
-		// "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/MSNBC/Problems/";
-		// String repl = ".json";
+		 String dir = "data/msnbc/";
+		 String dir2 =
+		 "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/MSNBC/Problems/";
+		 String repl = ".json";
 
-		// String dir = "data/wiki/";
-		// String dir2 =
-		// "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/WikipediaSample/ProblemsTest/";
-		// String repl = ".txt.json";
+//		 String dir = "data/wiki/";
+//		 String dir2 =
+//		 "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/WikipediaSample/ProblemsTest/";
+//		 String repl = ".txt.json";
 
-		String dir = "data/aquaint/";
-		String dir2 = "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/AQUAINT/Problems/";
-		String repl = ".txt.json";
+//		 String dir = "data/aquaint/";
+//		 String dir2 =
+//		 "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/AQUAINT/Problems/";
+//		 String repl = ".txt.json";
 
 		String[] files = new File(dir).list();
 		int tp = 0, fp = 0, fn = 0;
 		int tp2 = 0, fp2 = 0, fn2 = 0;
+		int empty = 0;
 		for (String file : files) {
 			if (file.endsWith(".json")) {
 				System.out.println("=====" + file + "==========");
@@ -47,8 +50,38 @@ public class EvaluateAida {
 						+ file);
 				Map<Pair<Integer, Integer>, String> gold = readGoldFromWikifier(dir2
 						+ file.replace(repl, ""));
-				System.out.println(result);
-				System.out.println(gold);
+				if (gold.isEmpty()) {
+					empty++;
+					continue;
+				}
+				System.out.println("GOLD:" + gold);
+				System.out.println("PRED:" + result);
+
+				// BOC precision
+				HashSet<String> goldConcepts = new HashSet<String>(
+						gold.values());
+				HashSet<String> predConcepts = new HashSet<String>();
+				System.out.println("GOLD2:" + goldConcepts);
+				System.out.println("PRED2:" + predConcepts);
+				for (Pair<Integer, Integer> pair : result.keySet()) {
+					if (gold.containsKey(pair)) {
+						predConcepts.add(result.get(pair));
+					}
+				}
+				for (String concept : goldConcepts) {
+					if (predConcepts.contains(concept)) {
+						tp2++;
+						predConcepts.remove(concept);
+					} else {
+						fn2++;
+						System.out.println("[FN2]" + concept);
+					}
+				}
+				for (String concept : predConcepts) {
+					fp2++;
+					System.out.println("[FP2]" + concept);
+				}
+
 				// AIDA precision
 				for (Pair<Integer, Integer> pos : gold.keySet()) {
 					boolean found = false;
@@ -73,31 +106,10 @@ public class EvaluateAida {
 				for (Pair<Integer, Integer> pos : result.keySet()) {
 					System.out.println("[FP]" + pos + " => " + result.get(pos));
 				}
-				// BOC precision
-				HashSet<String> goldConcepts = new HashSet<String>(
-						gold.values());
-				HashSet<String> predConcepts = new HashSet<String>(
-						result.values());
-				System.out.println("GOLD:" + goldConcepts);
-				System.out.println("PRED:" + predConcepts);
-
-				for (String concept : goldConcepts) {
-					if (predConcepts.contains(concept)) {
-						tp2++;
-						predConcepts.remove(concept);
-					} else {
-						fn2++;
-						System.out.println("[FN2]" + concept);
-					}
-				}
-				for (String concept : predConcepts) {
-					fp2++;
-					System.out.println("[FP2]" + concept);
-				}
 			}
 		}
 		{
-			System.out.println("==============");
+			System.out.println("======" + dir + "==empty:" + empty + "===");
 			double prec = (double) tp / (tp + fp);
 			double rec = (double) tp / (tp + fn);
 			double f1 = 2 * prec * rec / (prec + rec);
@@ -118,7 +130,105 @@ public class EvaluateAida {
 		}
 	}
 
-	private static Map<Pair<Integer, Integer>, String> readGoldFromWikifier(
+	private static void test() {
+		String dir = "/projects/pardosa/data12/xiaoling/workspace/wikifier/output/FULL/ACE/";
+		String dir2 = "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/ACE2004_Coref_Turking/Dev/ProblemsNoTranscripts/";
+		String repl = ".tagged.full.xml";
+
+		String[] files = new File(dir).list();
+		int tp = 0, fp = 0, fn = 0;
+		int tp2 = 0, fp2 = 0, fn2 = 0;
+		int empty = 0;
+		for (String file : files) {
+			// String file = "20001115_AFP_ARB.0072.eng";
+			if (!file.endsWith(repl)) {
+				continue;
+			}
+			Map<Pair<Integer, Integer>, String> gold = readGoldFromWikifier(dir2
+					+ file.replace(repl, ""));
+			Map<Pair<Integer, Integer>, String> result0 = EvaluateWikifier
+					.readWikifierOutput(dir + file);
+			Map<Pair<Integer, Integer>, String> result = new HashMap<Pair<Integer, Integer>, String>();
+			for (Pair<Integer, Integer> pair : result0.keySet()) {
+				Pair<Integer, Integer> pair2 = new Pair<Integer, Integer>(
+						pair.first + 1, pair.second + 1);
+				result.put(pair2, result0.get(pair));
+			}
+			System.out.println("=====" + file + "==========");
+			System.out.println("GOLD:" + gold);
+			System.out.println("PRED:" + result);
+
+			// BOC precision
+			HashSet<String> goldConcepts = new HashSet<String>(gold.values());
+			HashSet<String> predConcepts = new HashSet<String>();
+			for (Pair<Integer, Integer> pair : result.keySet()) {
+				if (gold.containsKey(pair)) {
+					predConcepts.add(result.get(pair));
+				}
+			}
+			System.out.println("GOLD2:" + goldConcepts);
+			System.out.println("PRED2:" + predConcepts);
+
+			for (String concept : goldConcepts) {
+				if (predConcepts.contains(concept)) {
+					tp2++;
+					predConcepts.remove(concept);
+				} else {
+					fn2++;
+					System.out.println("[FN2]" + concept);
+				}
+			}
+			for (String concept : predConcepts) {
+				fp2++;
+				System.out.println("[FP2]" + concept);
+			}
+
+			// AIDA precision
+			for (Pair<Integer, Integer> pos : gold.keySet()) {
+				boolean found = false;
+				for (Pair<Integer, Integer> pos2 : result.keySet()) {
+					if (pos.equals(pos2)
+							&& result.get(pos2).equalsIgnoreCase(gold.get(pos))) {
+						tp++;
+						result.remove(pos2);
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					fn++;
+					System.out.println("[FN]" + pos + " => " + gold.get(pos));
+				}
+			}
+
+			fp += result.size();
+			for (Pair<Integer, Integer> pos : result.keySet()) {
+				System.out.println("[FP]" + pos + " => " + result.get(pos));
+			}
+		}
+		{
+			System.out.println("======" + dir + "==empty:" + empty + "===");
+			double prec = (double) tp / (tp + fp);
+			double rec = (double) tp / (tp + fn);
+			double f1 = 2 * prec * rec / (prec + rec);
+			System.out.println(String.format("prec=%.3f\trec=%.3f\tf1=%.3f",
+					prec, rec, f1));
+			System.out.println(String.format("tp = %d, fp = %d, fn = %d", tp,
+					fp, fn));
+		}
+		{
+			System.out.println("=====BOC=====");
+			double prec = (double) tp2 / (tp2 + fp2);
+			double rec = (double) tp2 / (tp2 + fn2);
+			double f1 = 2 * prec * rec / (prec + rec);
+			System.out.println(String.format("prec=%.3f\trec=%.3f\tf1=%.3f",
+					prec, rec, f1));
+			System.out.println(String.format("tp2 = %d, fp2 = %d, fn2 = %d",
+					tp2, fp2, fn2));
+		}
+	}
+
+	public static Map<Pair<Integer, Integer>, String> readGoldFromWikifier(
 			String filename) {
 		List<String> lines = null;
 		try {
@@ -143,7 +253,10 @@ public class EvaluateAida {
 					length = Integer.parseInt(line.trim());
 				case 3:
 					label = line.trim();
-					if (label.startsWith("http")){label=label.replace("http://en.wikipedia.org/wiki/", "");}
+					if (label.startsWith("http")) {
+						label = label.replace("http://en.wikipedia.org/wiki/",
+								"");
+					}
 				default:
 					state = 0;
 				}

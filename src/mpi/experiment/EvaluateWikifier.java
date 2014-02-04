@@ -68,7 +68,28 @@ public class EvaluateWikifier {
 
 			System.out.println("==========");
 			System.out.println("doc " + id2);
-
+			// BOC precision
+			HashSet<String> goldConcepts = new HashSet<String>(gold.values());
+			HashSet<String> predConcepts = new HashSet<String>(result.values());
+			System.out.println("GOLD:" + goldConcepts);
+			System.out.println("PRED:" + predConcepts);
+			for (String concept : goldConcepts) {
+				if (predConcepts.contains(concept)) {
+					tp2++;
+					predConcepts.remove(concept);
+				} else {
+					fn2++;
+					System.out.println("[FN2]" + concept);
+				}
+			}
+			for (String concept : predConcepts) {
+				fp2++;
+				System.out.println("[FP2]" + concept);
+			}
+			if (fn2 > fn) {
+				System.out.println(id + "," + fn2 + "," + fn);
+			}
+			
 			// AIDA precision
 			for (Pair<Integer, Integer> pos : gold.keySet()) {
 				if (result.containsKey(pos)
@@ -84,25 +105,6 @@ public class EvaluateWikifier {
 			fp += result.size();
 			for (Pair<Integer, Integer> pos : result.keySet()) {
 				System.out.println("[FP]" + pos + " => " + result.get(pos));
-			}
-			// BOC precision
-			HashSet<String> goldConcepts = new HashSet<String>(gold.values());
-			HashSet<String> predConcepts = new HashSet<String>(result.values());
-			System.out.println("GOLD:" + goldConcepts);
-			System.out.println("PRED:" + predConcepts);
-
-			for (String concept : goldConcepts) {
-				if (predConcepts.contains(concept)) {
-					tp2++;
-					predConcepts.remove(concept);
-				} else {
-					fn2++;
-					System.out.println("[FN2]" + concept);
-				}
-			}
-			for (String concept : predConcepts) {
-				fp2++;
-				System.out.println("[FP2]" + concept);
 			}
 		}
 		{
