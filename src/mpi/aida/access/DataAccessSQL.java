@@ -474,7 +474,9 @@ public class DataAccessSQL implements DataAccessInterface {
       statement.commit();
       return neighbors;
     } catch (Exception e) {
-      logger.error(e.getLocalizedMessage());
+      logger.error(e.getLocalizedMessage() +"###SQL="+"SELECT entity, inlinks FROM " + 
+              DataAccessSQL.ENTITY_INLINKS + 
+              " WHERE entity IN (" + entitiesQuery + ")");
     } finally {
       AidaManager.releaseConnection(AidaManager.DB_AIDA, con);
     }

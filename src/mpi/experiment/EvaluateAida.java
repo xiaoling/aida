@@ -16,29 +16,145 @@ import org.json.simple.parser.JSONParser;
 
 public class EvaluateAida {
 	private static JSONParser parser = new JSONParser();
+	public static Map<String, String> redirects = null;
+	static {
+		List<String> lines;
+		try {
+			redirects = new HashMap<String, String>();
+			lines = FileUtils.readLines(new File("redirects.evaluation"));
+			for (String line : lines) {
+				String[] pair = line.split("\t");
+				redirects.put(pair[0], pair[1]);
+			}
+			lines = FileUtils.readLines(new File("redirects.aida.evaluation"));
+			for (String line : lines) {
+				String[] pair = line.split("\t");
+				redirects.put(pair[0], pair[1]);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static Map<String, String> getStats(String filename) {
+		try {
+			Map<String, String> stats = new HashMap<String, String>();
+			List<String> lines = FileUtils.readLines(new File(filename));
+			for (int i = 0; i < lines.size(); i++) {
+				if (lines.get(i).startsWith("Saving the full")) {
+					String key = lines.get(i).substring(
+							lines.get(i).indexOf(" to ") + 4);
+					key = key.substring(key.indexOf("//") + 2);
+					StringBuilder sb = new StringBuilder(lines.get(i - 3)
+							.replaceAll("\\p{Alpha}", ""));
+					sb.append("/");
+					sb.append(lines.get(i - 2).replaceAll("\\p{Alpha}", ""));
+					sb.append("/");
+					sb.append(lines.get(i - 1).replaceAll("\\p{Alpha}", ""));
+					stats.put(key, sb.toString());
+				}
+			}
+			return stats;
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	static Map<String, String> stats = new HashMap<String, String>();
 
 	public static void main(String[] args) {
-//		test();
+		EvaluateWikifier.linkThresh = -0.00;
+		EvaluateWikifier.rankThresh = -1.00;
+//		Map<String, String> statsW = getStats("/projects/pardosa/data12/xiaoling/workspace/wikifier/output/AblationResults/FULL.xml/"
+//				 + "Ace");
+//		evaluateWikifier("ACE", true);
+//		for (String key : statsW.keySet()) {
+//			if (!statsW.get(key).equals(stats.get(key))) {
+//				System.out.println("FILE = " + key);
+//				System.out.println("WIKIFIER:" + statsW.get(key));
+//				System.out.println("MINE:" + stats.get(key));
+//			}
+//		}
 //		System.exit(0);
-//		String dir = "data/ace/";
-//		String dir2 = "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/ACE2004_Coref_Turking/Dev/ProblemsNoTranscripts/";
-//		String repl = ".txt.json";
 
-		 String dir = "data/msnbc/";
-		 String dir2 =
-		 "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/MSNBC/Problems/";
-		 String repl = ".json";
+		StringBuilder sb = new StringBuilder();
+		sb.append("W-A\t");
+		sb.append(evaluateWikifier("ACE", true));
+		sb.append("\t");
+		sb.append(evaluateWikifier("MSNBC", true));
+		sb.append("\t");
+		sb.append(evaluateWikifier("AQUAINT", true));
+		sb.append("\t");
+		sb.append(evaluateWikifier("WIKI", true));
+		sb.append("\n");
 
-//		 String dir = "data/wiki/";
-//		 String dir2 =
-//		 "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/WikipediaSample/ProblemsTest/";
-//		 String repl = ".txt.json";
+		sb.append("A-A\t");
+		sb.append(evaluateAida("ACE", true));
+		sb.append("\t");
+		sb.append(evaluateAida("MSNBC", true));
+		sb.append("\t");
+		sb.append(evaluateAida("AQUAINT", true));
+		sb.append("\t");
+		sb.append(evaluateAida("WIKI", true));
+		sb.append("\n");
+//		try {
+//			FileUtils.writeLines(new File("aida.pred.entities"), stats.keySet());
+//		} catch (IOException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+//		System.exit(0);
+		
+		sb.append("W-N\t");
+		sb.append(evaluateWikifier("ACE", false));
+		sb.append("\t");
+		sb.append(evaluateWikifier("MSNBC", false));
+		sb.append("\t");
+		sb.append(evaluateWikifier("AQUAINT", false));
+		sb.append("\t");
+		sb.append(evaluateWikifier("WIKI", false));
+		sb.append("\n");
 
-//		 String dir = "data/aquaint/";
-//		 String dir2 =
-//		 "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/AQUAINT/Problems/";
-//		 String repl = ".txt.json";
+		sb.append("A-N\t");
+		sb.append(evaluateAida("ACE", false));
+		sb.append("\t");
+		sb.append(evaluateAida("MSNBC", false));
+		sb.append("\t");
+		sb.append(evaluateAida("AQUAINT", false));
+		sb.append("\t");
+		sb.append(evaluateAida("WIKI", false));
+		sb.append("\n");
 
+		System.out.println("==========================");
+		System.out.println(sb.toString());
+	}
+
+	public static double evaluateAida(String dataset,
+			boolean useNonNamedEntities) {
+		String dir = null, dir2 = null, repl = null;
+		switch (dataset) {
+		case "ACE":
+			dir = "data/ace/";
+			dir2 = "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/ACE2004_Coref_Turking/Dev/ProblemsNoTranscripts/";
+			repl = ".txt.json";
+			break;
+		case "AQUAINT":
+			dir = "data/aquaint/";
+			dir2 = "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/AQUAINT/Problems/";
+			repl = ".txt.json";
+			break;
+		case "MSNBC":
+			dir = "data/msnbc/";
+			dir2 = "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/MSNBC/Problems/";
+			repl = ".json";
+			break;
+		case "WIKI":
+			dir = "data/wiki/";
+			dir2 = "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/WikipediaSample/ProblemsTest/";
+			repl = ".txt.json";
+			break;
+		}
 		String[] files = new File(dir).list();
 		int tp = 0, fp = 0, fn = 0;
 		int tp2 = 0, fp2 = 0, fn2 = 0;
@@ -48,26 +164,41 @@ public class EvaluateAida {
 				System.out.println("=====" + file + "==========");
 				Map<Pair<Integer, Integer>, String> result = readResultFromJson(dir
 						+ file);
-				Map<Pair<Integer, Integer>, String> gold = readGoldFromWikifier(dir2
-						+ file.replace(repl, ""));
+				for (Pair key : result.keySet()) {
+					String val = result.get(key);
+					if (redirects.containsKey(val)){
+						result.put(key, redirects.get(val));
+					}
+				}
+				
+				Map<Pair<Integer, Integer>, String> gold = readGoldFromWikifier(
+						dir2 + file.replace(repl, ""), useNonNamedEntities);
+				if (dir.contains("msnbc")) {
+					for (Pair key : gold.keySet()) {
+						gold.put(key, gold.get(key).replace(" ", "_"));
+					}
+				}
 				if (gold.isEmpty()) {
 					empty++;
 					continue;
 				}
 				System.out.println("GOLD:" + gold);
 				System.out.println("PRED:" + result);
-
+//				for (String r: result.values()) {
+//					stats.put(r, "");
+//				}
 				// BOC precision
 				HashSet<String> goldConcepts = new HashSet<String>(
 						gold.values());
 				HashSet<String> predConcepts = new HashSet<String>();
 				System.out.println("GOLD2:" + goldConcepts);
-				System.out.println("PRED2:" + predConcepts);
 				for (Pair<Integer, Integer> pair : result.keySet()) {
 					if (gold.containsKey(pair)) {
 						predConcepts.add(result.get(pair));
 					}
 				}
+				System.out.println("PRED2:" + predConcepts);
+				int oldTp = tp2, oldFn = fn2, oldFp = fp2;
 				for (String concept : goldConcepts) {
 					if (predConcepts.contains(concept)) {
 						tp2++;
@@ -81,7 +212,8 @@ public class EvaluateAida {
 					fp2++;
 					System.out.println("[FP2]" + concept);
 				}
-
+				System.out.println(String.format("[INC]tp=%d, fp=%d, fn=%d",
+						tp2 - oldTp, fp2 - oldFp, fn2 - oldFn));
 				// AIDA precision
 				for (Pair<Integer, Integer> pos : gold.keySet()) {
 					boolean found = false;
@@ -118,21 +250,42 @@ public class EvaluateAida {
 			System.out.println(String.format("tp = %d, fp = %d, fn = %d", tp,
 					fp, fn));
 		}
+		double res = 0;
 		{
 			System.out.println("=====BOC=====");
 			double prec = (double) tp2 / (tp2 + fp2);
 			double rec = (double) tp2 / (tp2 + fn2);
 			double f1 = 2 * prec * rec / (prec + rec);
+			res = f1;
 			System.out.println(String.format("prec=%.3f\trec=%.3f\tf1=%.3f",
 					prec, rec, f1));
 			System.out.println(String.format("tp2 = %d, fp2 = %d, fn2 = %d",
 					tp2, fp2, fn2));
 		}
+		return res;
 	}
 
-	private static void test() {
-		String dir = "/projects/pardosa/data12/xiaoling/workspace/wikifier/output/FULL/ACE/";
-		String dir2 = "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/ACE2004_Coref_Turking/Dev/ProblemsNoTranscripts/";
+	public static double evaluateWikifier(String dataset,
+			boolean useNonNamedEntities) {
+		String dir = null, dir2 = null;
+		switch (dataset) {
+		case "ACE":
+			dir = "/projects/pardosa/data12/xiaoling/workspace/wikifier/output/FULL/ACE/";
+			dir2 = "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/ACE2004_Coref_Turking/Dev/ProblemsNoTranscripts/";
+			break;
+		case "AQUAINT":
+			dir = "/projects/pardosa/data12/xiaoling/workspace/wikifier/output/AQUAINT/";
+			dir2 = "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/AQUAINT/Problems/";
+			break;
+		case "MSNBC":
+			dir = "/projects/pardosa/data12/xiaoling/workspace/wikifier/output/MSNBC/";
+			dir2 = "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/MSNBC/Problems/";
+			break;
+		case "WIKI":
+			dir = "/projects/pardosa/data12/xiaoling/workspace/wikifier/output/Wikipedia/";
+			dir2 = "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/WikificationACL2011Data/WikipediaSample/ProblemsTest/";
+			break;
+		}
 		String repl = ".tagged.full.xml";
 
 		String[] files = new File(dir).list();
@@ -140,12 +293,12 @@ public class EvaluateAida {
 		int tp2 = 0, fp2 = 0, fn2 = 0;
 		int empty = 0;
 		for (String file : files) {
-			// String file = "20001115_AFP_ARB.0072.eng";
+			// String file = "Pol16452612.txt.tagged.full.xml";
 			if (!file.endsWith(repl)) {
 				continue;
 			}
-			Map<Pair<Integer, Integer>, String> gold = readGoldFromWikifier(dir2
-					+ file.replace(repl, ""));
+			Map<Pair<Integer, Integer>, String> gold = readGoldFromWikifier(
+					dir2 + file.replace(repl, ""), useNonNamedEntities);
 			Map<Pair<Integer, Integer>, String> result0 = EvaluateWikifier
 					.readWikifierOutput(dir + file);
 			Map<Pair<Integer, Integer>, String> result = new HashMap<Pair<Integer, Integer>, String>();
@@ -161,11 +314,24 @@ public class EvaluateAida {
 			// BOC precision
 			HashSet<String> goldConcepts = new HashSet<String>(gold.values());
 			HashSet<String> predConcepts = new HashSet<String>();
+			HashSet<String> visitedNullEntities = new HashSet<String>();
+			int oldTp = tp2, oldFn = fn2, oldFp = fp2;
 			for (Pair<Integer, Integer> pair : result.keySet()) {
 				if (gold.containsKey(pair)) {
-					predConcepts.add(result.get(pair));
+					String label = gold.get(pair);
+					if (label.equals("*null*")) {
+						if (!visitedNullEntities.contains(result.get(pair))) {
+							fp2++;
+							System.out.println("[FP2]" + result.get(pair)
+									+ "(*null*)");
+							visitedNullEntities.add(result.get(pair));
+						} 
+					} else {
+						predConcepts.add(result.get(pair));
+					}
 				}
 			}
+			goldConcepts.remove("*null*");
 			System.out.println("GOLD2:" + goldConcepts);
 			System.out.println("PRED2:" + predConcepts);
 
@@ -182,7 +348,14 @@ public class EvaluateAida {
 				fp2++;
 				System.out.println("[FP2]" + concept);
 			}
-
+			System.out.println(String.format("[INC]tp=%d, fp=%d, fn=%d", tp2
+					- oldTp, fp2 - oldFp, fn2 - oldFn));
+//			{
+//				stats.put(
+//						file,
+//						String.format("%d/%d/%d", tp2 - oldTp, fp2 - oldFp, tp2
+//								- oldTp + fn2 - oldFn));
+//			}
 			// AIDA precision
 			for (Pair<Integer, Integer> pos : gold.keySet()) {
 				boolean found = false;
@@ -197,13 +370,14 @@ public class EvaluateAida {
 				}
 				if (!found) {
 					fn++;
-					System.out.println("[FN]" + pos + " => " + gold.get(pos));
+					// System.out.println("[FN]" + pos + " => " +
+					// gold.get(pos));
 				}
 			}
 
 			fp += result.size();
 			for (Pair<Integer, Integer> pos : result.keySet()) {
-				System.out.println("[FP]" + pos + " => " + result.get(pos));
+				// System.out.println("[FP]" + pos + " => " + result.get(pos));
 			}
 		}
 		{
@@ -216,20 +390,23 @@ public class EvaluateAida {
 			System.out.println(String.format("tp = %d, fp = %d, fn = %d", tp,
 					fp, fn));
 		}
+		double res = 0;
 		{
 			System.out.println("=====BOC=====");
 			double prec = (double) tp2 / (tp2 + fp2);
 			double rec = (double) tp2 / (tp2 + fn2);
 			double f1 = 2 * prec * rec / (prec + rec);
+			res = f1;
 			System.out.println(String.format("prec=%.3f\trec=%.3f\tf1=%.3f",
 					prec, rec, f1));
 			System.out.println(String.format("tp2 = %d, fp2 = %d, fn2 = %d",
 					tp2, fp2, fn2));
 		}
+		return res;
 	}
 
 	public static Map<Pair<Integer, Integer>, String> readGoldFromWikifier(
-			String filename) {
+			String filename, boolean useNonNamedEntities) {
 		List<String> lines = null;
 		try {
 			lines = FileUtils
@@ -242,6 +419,7 @@ public class EvaluateAida {
 		}
 		int offset = -1, length = -1;
 		String label = null;
+		String surfaceForm = null;
 		int state = 0;
 		Map<Pair<Integer, Integer>, String> gold = new HashMap<Pair<Integer, Integer>, String>();
 		for (String line : lines) {
@@ -249,30 +427,46 @@ public class EvaluateAida {
 				switch (state) {
 				case 1:
 					offset = Integer.parseInt(line.trim());
+					break;
 				case 2:
 					length = Integer.parseInt(line.trim());
+					break;
 				case 3:
 					label = line.trim();
-					if (label.startsWith("http")) {
-						label = label.replace("http://en.wikipedia.org/wiki/",
-								"");
+					// if (label.startsWith("http")) {
+					// label = label.replace("http://en.wikipedia.org/wiki/",
+					// "");
+					// }
+					// if (label.endsWith("\"") &&
+					// StringUtils.countMatches(label, "\"")==1)
+					// label = label.substring(0, label.length()-1);
+					if (redirects.containsKey(label)) {
+						label = redirects.get(label);
 					}
+					break;
+				case 4:
+					surfaceForm = line.trim();
+					break;
 				default:
-					state = 0;
+					break;
 				}
+				state = 0;
 			}
 			if (line.trim().equals("<Offset>")) {
 				state = 1;
-			}
-			if (line.trim().equals("<Length>")) {
+			} else if (line.trim().equals("<Length>")) {
 				state = 2;
-			}
-			if (line.trim().equals("<Annotation>")) {
+			} else if (line.trim().equals("<ChosenAnnotation>")) {
 				state = 3;
-			}
-			if (line.trim().equals("</ReferenceInstance>")) {
+			} else if (line.trim().equals("<SurfaceForm>")) {
+				state = 4;
+			} else if (line.trim().equals("</ReferenceInstance>")) {
 				state = 0;
-				if (!label.equals("none") && !label.equals("---")) {
+				if (!label.equals("none")
+						&& !label.equals("---")
+						// && !label.equals("*null*")
+						&& (useNonNamedEntities || !EvaluateWikifier
+								.containsNoUpperCase(surfaceForm))) {
 					gold.put(new Pair(offset, offset + length), label);
 				}
 			}

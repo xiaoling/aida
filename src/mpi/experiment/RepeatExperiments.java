@@ -1,4 +1,4 @@
-package mpi.aida;
+package mpi.experiment;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -16,7 +16,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import mpi.aida.config.AidaConfig;
+import mpi.aida.Disambiguator;
+import mpi.aida.Preparator;
 import mpi.aida.access.DataAccess;
 import mpi.aida.config.settings.DisambiguationSettings;
 import mpi.aida.config.settings.JsonSettings.JSONTYPE;
@@ -28,7 +29,6 @@ import mpi.aida.config.settings.disambiguation.CocktailPartyKORELSHDisambiguatio
 import mpi.aida.config.settings.disambiguation.LocalDisambiguationIDFSettings;
 import mpi.aida.config.settings.disambiguation.LocalDisambiguationSettings;
 import mpi.aida.config.settings.disambiguation.PriorOnlyDisambiguationSettings;
-import mpi.aida.config.settings.preparation.StanfordManualPreparationSettings;
 import mpi.aida.config.settings.preparation.StanfordHybridPreparationSettings;
 import mpi.aida.data.DisambiguationResults;
 import mpi.aida.data.Entities;
@@ -37,6 +37,10 @@ import mpi.aida.data.PreparedInput;
 import mpi.aida.data.ResultMention;
 import mpi.aida.data.ResultProcessor;
 import mpi.aida.util.htmloutput.HtmlGenerator;
+import mpi.experiment.reader.CoNLLReader;
+import mpi.experiment.reader.CollectionReader;
+import mpi.experiment.reader.CollectionReader.CollectionPart;
+import mpi.experiment.reader.CollectionReaderSettings;
 import mpi.tools.javatools.util.FileUtils;
 
 import org.apache.commons.cli.CommandLine;
@@ -49,19 +53,22 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 
 /**
- * Disambiguates a document from the command line.
  * 
+ * @author Xiao Ling
  */
-public class CommandLineDisambiguator {
+
+public class RepeatExperiments {
 
 	private Options commandLineOptions;
 
 	public static void main(String[] args) throws Exception {
-		new CommandLineDisambiguator().run(args);
+		new RepeatExperiments().run(args);
 	}
 
+	public static String outPath = "data/aida-gold2/";
+
 	public void run(String args[]) throws Exception {
-//		 System.out.println(AidaConfig.get(AidaConfig.MAX_NUM_CANDIDATE_ENTITIES_FOR_GRAPH));
+		// System.out.println(AidaConfig.get(AidaConfig.MAX_NUM_CANDIDATE_ENTITIES_FOR_GRAPH));
 		commandLineOptions = buildCommandLineOptions();
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = null;
@@ -79,35 +86,13 @@ public class CommandLineDisambiguator {
 		if (cmd.hasOption("t")) {
 			disambiguationTechniqueSetting = cmd.getOptionValue("t");
 		}
-		String input = cmd.getOptionValue("i");
-		File inputFile = new File(input);
-		List<File> files = new ArrayList<File>();
-		if (cmd.hasOption("d")) {
-			if (!inputFile.isDirectory()) {
-				System.out.println("\n\nError: expected " + input
-						+ " to be a directory.");
-				printHelp(commandLineOptions);
-			}
-			for (File f : FileUtils.getAllFiles(inputFile)) {
-				if (f.getName().endsWith(".txt")) {
-					files.add(f);
-				}
-			}
-		} else {
-			if (inputFile.isDirectory()) {
-				System.out.println("\n\nError: expected " + input
-						+ " to be a file.");
-				printHelp(commandLineOptions);
-			}
-			files.add(inputFile);
-		}
 		String outputFormat = "HTML";
 		if (cmd.hasOption("o")) {
 			outputFormat = cmd.getOptionValue("o");
 		}
 		PreparationSettings prepSettings = new StanfordHybridPreparationSettings();
 
-//StanfordManualPreparationSettings();// 
+		// StanfordManualPreparationSettings();//
 		if (cmd.hasOption('m')) {
 			int minCount = Integer.parseInt(cmd.getOptionValue('m'));
 			prepSettings.setMinMentionOccurrenceCount(minCount);
@@ -125,12 +110,21 @@ public class CommandLineDisambiguator {
 			resultCount = Integer.parseInt(cmd.getOptionValue("e"));
 		}
 		ExecutorService es = Executors.newFixedThreadPool(threadCount);
-		System.out.println("Processing " + files.size() + " documents with "
-				+ threadCount + " threads.");
-		for (File f : files) {
-			Processor proc = new Processor(f.getAbsolutePath(),
-					disambiguationTechniqueSetting, p, prepSettings,
-					outputFormat, resultCount, !inputFile.isDirectory());
+		System.out.println("Processing testb documents with " + threadCount
+				+ " threads.");
+
+		CollectionReaderSettings settings = new CollectionReaderSettings();
+		settings.setIncludeNMEMentions(false);
+		settings.setKeepSpaceBeforePunctuations(true);
+		String collectionPath = "/homes/gws/xiaoling/dataset/nel/AIDA/aida-yago2-dataset/";
+		CollectionReader reader = new CoNLLReader(collectionPath,
+				CollectionPart.TEST, settings);
+		for (PreparedInput input : reader) {
+			String id = input.getDocId();
+			Processor proc = new Processor(outPath
+					+ id.substring(0, id.indexOf("testb")) + ".txt",
+					disambiguationTechniqueSetting, input, prepSettings,
+					outputFormat, resultCount, true);
 			es.execute(proc);
 		}
 		es.shutdown();
@@ -140,18 +134,18 @@ public class CommandLineDisambiguator {
 	@SuppressWarnings("static-access")
 	private Options buildCommandLineOptions() throws ParseException {
 		Options options = new Options();
-		options.addOption(OptionBuilder
-				.withLongOpt("input")
-				.withDescription(
-						"Input, assumed to be a UTF-8 encoded text file. "
-								+ "Set -d to treat  the parameter as directory.")
-				.hasArg().withArgName("FILE").isRequired().create("i"));
-		options.addOption(OptionBuilder
-				.withLongOpt("directory")
-				.withDescription(
-						"Set to treat the -i input as directory. Will recursively process"
-								+ "all .txt files in the directory.")
-				.create("d"));
+		// options.addOption(OptionBuilder
+		// .withLongOpt("input")
+		// .withDescription(
+		// "Input, assumed to be a UTF-8 encoded text file. "
+		// + "Set -d to treat  the parameter as directory.")
+		// .hasArg().withArgName("FILE").isRequired().create("i"));
+		// options.addOption(OptionBuilder
+		// .withLongOpt("directory")
+		// .withDescription(
+		// "Set to treat the -i input as directory. Will recursively process"
+		// + "all .txt files in the directory.")
+		// .create("d"));
 		options.addOption(OptionBuilder
 				.withLongOpt("technique")
 				.withDescription(
@@ -192,20 +186,20 @@ public class CommandLineDisambiguator {
 	class Processor implements Runnable {
 		private String inputFile;
 		private String disambiguationTechniqueSetting;
-		private Preparator p;
 		private PreparationSettings prepSettings;
 		private String outputFormat;
 		private int resultCount;
 		private boolean logResults;
+		private PreparedInput input;
 
 		public Processor(String inputFile,
-				String disambiguationTechniqueSetting, Preparator p,
+				String disambiguationTechniqueSetting, PreparedInput input,
 				PreparationSettings prepSettings, String outputFormat,
 				int resultCount, boolean logResults) {
 			super();
 			this.inputFile = inputFile;
 			this.disambiguationTechniqueSetting = disambiguationTechniqueSetting;
-			this.p = p;
+			this.input = input;
 			this.prepSettings = prepSettings;
 			this.outputFormat = outputFormat;
 			this.resultCount = resultCount;
@@ -216,30 +210,31 @@ public class CommandLineDisambiguator {
 		public void run() {
 			try {
 				String resultFile = null;
-          if (outputFormat.equals("JSON")) {
-            resultFile = inputFile + ".json";
-          } else if (outputFormat.equals("HTML")) {
-            resultFile = inputFile + ".html";
-          } else {
-            System.out.println("Unrecognized output format.");
-            printHelp(commandLineOptions);
-          }
-          if (resultFile!=null && new File(resultFile).exists()) {
-        	  return;
-          }
-				BufferedReader reader = new BufferedReader(
-						new InputStreamReader(new FileInputStream(inputFile),
-								"UTF-8"));
-				StringBuilder content = new StringBuilder();
-
-				for (String line = reader.readLine(); line != null; line = reader
-						.readLine()) {
-					content.append(line).append('\n');
+				if (outputFormat.equals("JSON")) {
+					resultFile = inputFile + ".json";
+				} else if (outputFormat.equals("HTML")) {
+					resultFile = inputFile + ".html";
+				} else {
+					System.out.println("Unrecognized output format.");
+					printHelp(commandLineOptions);
 				}
-				reader.close();
+				if (resultFile != null && new File(resultFile).exists()) {
+					return;
+				}
+//				BufferedReader reader = new BufferedReader(
+//						new InputStreamReader(new FileInputStream(inputFile),
+//								"UTF-8"));
+//				StringBuilder content = new StringBuilder();
+//
+//				for (String line = reader.readLine(); line != null; line = reader
+//						.readLine()) {
+//					content.append(line).append('\n');
+//				}
+//				reader.close();
 
-				PreparedInput input = p.prepare(inputFile, content.toString(),
-						prepSettings);
+				// PreparedInput input = p.prepare(inputFile,
+				// content.toString(),
+				// prepSettings);
 				DisambiguationSettings disSettings = null;
 				if (disambiguationTechniqueSetting.equals("PRIOR")) {
 					disSettings = new PriorOnlyDisambiguationSettings();
@@ -267,7 +262,7 @@ public class CommandLineDisambiguator {
 				DisambiguationResults results = d.disambiguate();
 
 				// retrieve JSON representation of Disambiguated results
-				ResultProcessor rp = new ResultProcessor(content.toString(),
+				ResultProcessor rp = new ResultProcessor("",
 						results, inputFile, input, resultCount);
 				// String jsonStr = rp.process(false);
 				String jsonStr = rp.process(JSONTYPE.EXTENDED).toJSONString();
@@ -278,7 +273,7 @@ public class CommandLineDisambiguator {
 				} else if (outputFormat.equals("HTML")) {
 					resultFile = inputFile + ".html";
 					// generate HTML from Disambiguated Results
-					HtmlGenerator gen = new HtmlGenerator(content.toString(),
+					HtmlGenerator gen = new HtmlGenerator("",
 							jsonStr, inputFile, input);
 					resultContent = gen.constructFromJson(jsonStr);
 				} else {
@@ -337,4 +332,5 @@ public class CommandLineDisambiguator {
 			}
 		}
 	}
+
 }

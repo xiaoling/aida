@@ -28,10 +28,12 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 public class EvaluateWikifier {
-	public static double rankThresh = 0;
-	public static double linkThresh = 0.05;
+	public static double rankThresh = -1.0;
+	public static double linkThresh = -0.0;
 
 	public static void main(String[] args) {
+		evaluateAida();
+		System.exit(0);
 		if (args.length == 2) {
 			linkThresh = Double.parseDouble(args[0]);
 			rankThresh = Double.parseDouble(args[1]);
@@ -53,19 +55,27 @@ public class EvaluateWikifier {
 			Mentions mentions = inputDoc.getMentions();
 			Map<Pair<Integer, Integer>, String> gold = new HashMap<Pair<Integer, Integer>, String>();
 			for (Mention mention : mentions.getMentions()) {
-				gold.put(
-						new Pair<Integer, Integer>(mention.getCharOffset(),
-								mention.getCharOffset()
-										+ mention.getCharLength()),
-						mention.getNer().substring(
-								"http://en.wikipedia.org/wiki/".length()));
+				String label = mention.getNer().substring(
+						"http://en.wikipedia.org/wiki/".length());
+				if (EvaluateAida.redirects.containsKey(label)) {
+					label = EvaluateAida.redirects.get(label);
+				}
+				gold.put(new Pair<Integer, Integer>(mention.getCharOffset(),
+						mention.getCharOffset() + mention.getCharLength()),
+						label);
 			}
 			String id2 = id.substring(0, id.indexOf("testb"));
 			createHtmlFromAnnotation(id2, gold);
 
 			Map<Pair<Integer, Integer>, String> result = readWikifierOutput(wikifierPath
 					+ id2 + ".wikification.tagged.full.xml");
-
+			java.util.Iterator<java.util.Map.Entry<Pair<Integer, Integer>, String>> it = result
+					.entrySet().iterator();
+			while (it.hasNext()) {
+				if (!gold.containsKey(it.next().getKey())) {
+					it.remove();
+				}
+			}
 			System.out.println("==========");
 			System.out.println("doc " + id2);
 			// BOC precision
@@ -89,8 +99,9 @@ public class EvaluateWikifier {
 			if (fn2 > fn) {
 				System.out.println(id + "," + fn2 + "," + fn);
 			}
-			
+
 			// AIDA precision
+			int fn0 = 0;
 			for (Pair<Integer, Integer> pos : gold.keySet()) {
 				if (result.containsKey(pos)
 						&& result.get(pos).equalsIgnoreCase(gold.get(pos))) {
@@ -98,11 +109,13 @@ public class EvaluateWikifier {
 					result.remove(pos);
 				} else {
 					fn++;
+					fn0++;
 					System.out.println("[FN]" + pos + " => " + gold.get(pos));
 				}
 			}
 
 			fp += result.size();
+			System.out.println("[INC]fp=" + result.size() + ",fn=" + fn0);
 			for (Pair<Integer, Integer> pos : result.keySet()) {
 				System.out.println("[FP]" + pos + " => " + result.get(pos));
 			}
@@ -124,6 +137,130 @@ public class EvaluateWikifier {
 			double rec = (double) tp2 / (tp2 + fn2);
 			double f1 = 2 * prec * rec / (prec + rec);
 			System.out.println(String.format("prec=%.3f\trec=%.3f\tf1=%.3f",
+					prec, rec, f1));
+			System.out.println(String.format("tp2 = %d, fp2 = %d, fn2 = %d",
+					tp2, fp2, fn2));
+		}
+	}
+
+	/**
+	 * micro precision at 1.0: AIDA 82.54 (from the web)
+	 */
+	private static void evaluateAida() {
+		String aidaPath = "/homes/gws/xiaoling/dataset/nel/AIDA/aida-yago2-dataset/";
+		// String aidaPath = "doc/";
+		String aidaOutPath = "data/aida-gold2/";
+		// String wikifierPath =
+		// "/projects/pardosa/data12/xiaoling/workspace/wikifier/data/aida_output/";
+		CollectionReaderSettings settings = new CollectionReaderSettings();
+		// settings.setIncludeNMEMentions(false);
+		settings.setIncludeOutOfDictionaryMentions(true);
+		settings.setKeepSpaceBeforePunctuations(true);
+		CoNLLReader reader = new CoNLLReader(aidaPath, CollectionPart.TEST,
+				settings);
+
+		int tp = 0, fp = 0, fn = 0;
+		int tp2 = 0, fp2 = 0, fn2 = 0;
+		for (PreparedInput inputDoc : reader) {
+			String id = inputDoc.getDocId();
+			if (id.startsWith("1270") || id.startsWith("1308")
+					|| id.startsWith("1349")) {
+				// continue;
+			}
+			Mentions mentions = inputDoc.getMentions();
+			Map<Pair<Integer, Integer>, String> gold = new HashMap<Pair<Integer, Integer>, String>();
+			for (Mention mention : mentions.getMentions()) {
+				gold.put(
+						new Pair<Integer, Integer>(mention.getCharOffset(),
+								mention.getCharOffset()
+										+ mention.getCharLength()),
+						mention.getNer().substring(
+								"http://en.wikipedia.org/wiki/".length()));
+			}
+			String id2 = id.substring(0, id.indexOf("testb"));
+			createHtmlFromAnnotation(id2, gold);
+
+			// Map<Pair<Integer, Integer>, String> result =
+			// readWikifierOutput(wikifierPath
+			// + id2 + ".wikification.tagged.full.xml");
+			Map<Pair<Integer, Integer>, String> result0 = EvaluateAida
+					.readResultFromJson(aidaOutPath + id2 + ".txt.json");
+			Map<Pair<Integer, Integer>, String> result = new HashMap<Pair<Integer, Integer>, String>();
+			if (aidaOutPath.contains("gold2")) {
+				result = result0;
+			} else {	
+			for (Pair<Integer, Integer> pair : result0.keySet()) {
+				Pair<Integer, Integer> pair2 = new Pair<Integer, Integer>(
+						pair.first - 1, pair.second - 1);
+				if (gold.containsKey(pair2)) {
+					result.put(pair2, result0.get(pair));
+				}
+			}
+			}
+			System.out.println("==========");
+			System.out.println("doc " + id2);
+			// BOC precision
+			HashSet<String> goldConcepts = new HashSet<String>(gold.values());
+			HashSet<String> predConcepts = new HashSet<String>(result.values());
+			System.out.println("GOLD(BOC):" + goldConcepts);
+			System.out.println("PRED(BOC):" + predConcepts);
+			for (String concept : goldConcepts) {
+				if (predConcepts.contains(concept)) {
+					tp2++;
+					predConcepts.remove(concept);
+				} else {
+					fn2++;
+					System.out.println("[FN2]" + concept);
+				}
+			}
+			for (String concept : predConcepts) {
+				fp2++;
+				System.out.println("[FP2]" + concept);
+			}
+
+			// AIDA precision
+			System.out.println("GOLD(POS):" + gold);
+			System.out.println("PRED(POS):" + result);
+			int fn0 = 0;
+			for (Pair<Integer, Integer> pos : gold.keySet()) {
+				if (result.containsKey(pos)
+						&& result.get(pos).equalsIgnoreCase(gold.get(pos))) {
+					tp++;
+					result.remove(pos);
+				} else {
+					fn++;
+					fn0++;
+					System.out.println("[FN]" + pos + " => " + gold.get(pos));
+				}
+			}
+
+			fp += result.size();
+			for (Pair<Integer, Integer> pos : result.keySet()) {
+				System.out.println("[FP]" + pos + " => " + result.get(pos));
+			}
+			System.out.println("[INC]fp=" + result.size() + ",fn=" + fn0);
+
+			if (fn2 > fn) {
+				System.out.println(id + "," + fn2 + "," + fn);
+			}
+		}
+		{
+			System.out.println("====" + linkThresh + "===" + rankThresh
+					+ "====");
+			double prec = (double) tp / (tp + fp);
+			double rec = (double) tp / (tp + fn);
+			double f1 = 2 * prec * rec / (prec + rec);
+			System.out.println(String.format("prec=%.4f\trec=%.4f\tf1=%.4f",
+					prec, rec, f1));
+			System.out.println(String.format("tp = %d, fp = %d, fn = %d", tp,
+					fp, fn));
+		}
+		{
+			System.out.println("=====BOC=====");
+			double prec = (double) tp2 / (tp2 + fp2);
+			double rec = (double) tp2 / (tp2 + fn2);
+			double f1 = 2 * prec * rec / (prec + rec);
+			System.out.println(String.format("prec=%.4f\trec=%.4f\tf1=%.4f",
 					prec, rec, f1));
 			System.out.println(String.format("tp2 = %d, fp2 = %d, fn2 = %d",
 					tp2, fp2, fn2));
@@ -226,29 +363,32 @@ public class EvaluateWikifier {
 							.getElementsByTagName("LinkerScore").item(0)
 							.getTextContent());
 					if (linkerScore < linkThresh
-							|| containsNoUpperCase(surfaceForm)) {
+					/* || containsNoUpperCase(surfaceForm) */) {
 						continue;
 					}
 					Pair<Integer, Integer> pos = new Pair<Integer, Integer>(
 							start - 1, end - 1);
-					if (costarts.containsKey(start - 1)) {
-						int end2 = costarts.get(start - 1).second;
-						if (end > end2) {
-							// use the longer span
-							result.remove(costarts.get(start - 1));
-							costarts.put(start - 1, pos);
-						} else {
-							continue;
-						}
-					} else {
-						costarts.put(start - 1, pos);
-					}
+					// if (costarts.containsKey(start - 1)) {
+					// int end2 = costarts.get(start - 1).second;
+					// if (end > end2) {
+					// // use the longer span
+					// result.remove(costarts.get(start - 1));
+					// costarts.put(start - 1, pos);
+					// } else {
+					// continue;
+					// }
+					// } else {
+					// costarts.put(start - 1, pos);
+					// }
 					double score = Double.parseDouble(eElement
 							.getElementsByTagName("TopDisambiguation").item(0)
 							.getChildNodes().item(5).getTextContent());
 					String entity = eElement
 							.getElementsByTagName("TopDisambiguation").item(0)
 							.getChildNodes().item(1).getTextContent();
+					if (EvaluateAida.redirects.containsKey(entity)) {
+						entity = EvaluateAida.redirects.get(entity);
+					}
 					if (score > rankThresh)
 						result.put(pos, entity);
 				}
