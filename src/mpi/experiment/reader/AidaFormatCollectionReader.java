@@ -138,7 +138,7 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
     text = new HashMap<String, String>();
     tokensMap = new HashMap<String, Tokens>();
     mentionsMap = new HashMap<String, Mentions>();
-    HashSet<String> punctuations = getPuncuations();
+    HashSet<String> punctuations = settings.isKeepSpaceBeforePunctuations()?new HashSet<String>():getPuncuations();
     int sentence = -1;
     Tokens tokens = null;
     Mentions mentions = null;
@@ -207,6 +207,7 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
             mentionStart = "B".equals(data[1]);
             textMention = data[2];
             entity = data[3];
+            ner = data[4];//xiaoling
           } else {
             logger.warn("line has wrong format " + line + " for docId " + docId);
           }
@@ -224,7 +225,9 @@ public abstract class AidaFormatCollectionReader extends CollectionReader {
             mention.setCharOffset(index);
             mention.setCharLength(textMention.length());
             mention.setMention(textMention);
+            mention.setNer(ner); //xiaoling
             mention.setGroundTruthResult(entity);
+	    mention.setNer(ner);
             mentions.addMention(mention);
           }
           index = endIndex + 1;
